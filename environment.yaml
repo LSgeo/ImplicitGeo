@@ -1,0 +1,11 @@
+name: geosiren
+channels:
+ - conda-forge
+dependencies:
+ - python=3.10
+ - colorcet
+ - matplotlib
+ - numpy
+ - rasterio
+ - tifffile
+ - torch
