@@ -8,11 +8,47 @@ torch.manual_seed(seed := 0)
 random.seed(seed)
 rng = np.random.default_rng()
 
-### SIREN. Sitzmann, V., Martel, J., Bergman, A., Lindell, D., Wetzstein, G., 2020.
+
+class RLoss:
+    """Regularisation loss for coordinate MLPs.
+    From: Ramasinghe, S., MacDonald, L.E., Lucey, S., 2022.
+    On the Frequency-bias of Coordinate-MLPs.
+    Presented at the Advances in Neural Information Processing Systems.
+    """
+
+    def __init__(self, Sigma: float = 1e-3) -> None:
+        """Regularisation loss for coordinate MLPs.
+        Args:
+            val: Represents search radius for the regularisation loss. "Small values".
+                Possible hyperparameter (controlling... local smoothness?)
+                These vals are relative to the Norm coord space - i.e. (-1,1)
+        """
+        self.Eps = torch.distributions.multivariate_normal.MultivariateNormal(
+            loc=torch.zeros(3),
+            covariance_matrix=torch.eye(3) * Sigma,
+        )
+
+    def __call__(
+        self, model: torch.nn.Module, xbar: torch.Tensor, n_samples: int, device="cuda"
+    ) -> torch.Tensor:
+        """Equation 11
+        Args:
+            model: Coordinate MLP we are using
+            xbar: Randomly selected from the coordinate space
+            n_samples: Number of random coord samples
+        """
+        Eps = self.Eps.sample((1, n_samples)).to(device)  # batched 1
+
+        return torch.norm(
+            (model.forward_until_g(xbar)) - model.forward_until_g(xbar + Eps)
+        ) / torch.norm(Eps)
+
+
+### Below attr: SIREN. Sitzmann, Martel, Bergman, Lindell, Wetzstein, 2020.
 # Implicit Neural Representations with Periodic Activation Functions,
-# in: Advances in Neural Information Processing Systems. Curran Associates, Inc., pp. 7462–7473.
+# in: Advances in Neural Information Processing Systems.
 # Originally written by the above authors at https://github.com/vsitzmann/siren
-# LS added 3rd (z) dimension (upwards)
+# LS modified for 3rd (z) dimension (upwards)
 
 
 def get_mgrid(sidelen, dim=3):
@@ -126,6 +162,11 @@ class Siren(nn.Module):
         )  # allows to take derivative w.r.t. input
         output = self.net(coords)
         return output, coords
+
+    def forward_until_g(self, coords):
+        """Forward pass until penultimate layer for RLoss"""
+        g = self.net[:-2]
+        return g(coords)
 
     def forward_with_activations(self, coords, retain_grad=False):
         """Returns not only model output, but also intermediate activations.
@@ -331,6 +372,11 @@ class INR(nn.Module):
 
         return output, coords
 
+    def forward_until_g(self, coords):
+        """Forward pass until penultimate layer for RLoss"""
+        g = self.net[:-2]
+        return g(coords)
+
 
 class ComplexGaborLayer2D(nn.Module):
     """
@@ -460,6 +506,11 @@ class INR2D(nn.Module):
             return output.real, coords
 
         return output, coords
+
+    def forward_until_g(self, coords):
+        """Forward pass until penultimate layer for RLoss"""
+        g = self.net[:-2]
+        return g(coords)
 
 
 def get_INR(
