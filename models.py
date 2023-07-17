@@ -402,11 +402,13 @@ class ComplexGaborLayer2D(nn.Module):
         omega0=10.0,
         sigma0=10.0,
         trainable=False,
+        mode_3d=False,
     ):
         super().__init__()
         self.omega_0 = omega0
         self.scale_0 = sigma0
         self.is_first = is_first
+        self.mode_3d = mode_3d
 
         self.in_features = in_features
 
@@ -424,6 +426,10 @@ class ComplexGaborLayer2D(nn.Module):
         # Second Gaussian window
         self.scale_orth = nn.Linear(in_features, out_features, bias=bias, dtype=dtype)
 
+        if self.mode_3d:
+            # Third Guassian window
+            self.scale_orth_z = nn.Linear(in_features, out_features, bias=bias, dtype=dtype)
+
     def forward(self, input):
         lin = self.linear(input)
 
@@ -432,7 +438,12 @@ class ComplexGaborLayer2D(nn.Module):
 
         freq_term = torch.exp(1j * self.omega_0 * lin)
 
-        arg = scale_x.abs().square() + scale_y.abs().square()
+        if self.mode_3d:
+            scale_z = self.scale_orth_z(input)
+            arg = scale_x.abs().square() + scale_y.abs().square() + scale_z.abs().square()
+        else:
+            arg = scale_x.abs().square() + scale_y.abs().square()
+
         gauss_term = torch.exp(-self.scale_0 * self.scale_0 * arg)
 
         return freq_term * gauss_term
@@ -453,6 +464,7 @@ class INR2D(nn.Module):
         sidelength=512,
         fn_samples=None,
         use_nyquist=True,
+        mode_3d=False,
     ):
         super().__init__()
 
@@ -478,6 +490,7 @@ class INR2D(nn.Module):
                 sigma0=scale,
                 is_first=True,
                 trainable=False,
+                mode_3d=mode_3d,
             )
         )
 
@@ -488,6 +501,7 @@ class INR2D(nn.Module):
                     hidden_features,
                     omega0=hidden_omega_0,
                     sigma0=scale,
+                    mode_3d=mode_3d,
                 )
             )
 
@@ -577,6 +591,23 @@ def get_INR(
             sidelength,
             fn_samples,
             use_nyquist,
+            mode_3d=False,
+        )
+    elif nonlin == "wire3d":
+        return INR2D(
+            in_features,
+            hidden_features,
+            hidden_layers,
+            out_features,
+            outermost_linear,
+            first_omega_0,
+            hidden_omega_0,
+            scale,
+            pos_encode,
+            sidelength,
+            fn_samples,
+            use_nyquist,
+            mode_3d=True,
         )
     else:
         return NotImplementedError(f"{nonlin} not implemented.")
