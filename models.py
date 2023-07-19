@@ -39,9 +39,9 @@ class RLoss:
         """
         Eps = self.Eps.sample((1, n_samples)).to(device)  # batched 1
 
-        return torch.norm(
+        return torch.linalg.vector_norm(
             (model.forward_until_g(xbar)) - model.forward_until_g(xbar + Eps)
-        ) / torch.norm(Eps)
+        ) / torch.linalg.vector_norm(Eps)
 
 
 ### Below attr: SIREN. Sitzmann, Martel, Bergman, Lindell, Wetzstein, 2020.
@@ -428,7 +428,9 @@ class ComplexGaborLayer2D(nn.Module):
 
         if self.mode_3d:
             # Third Guassian window
-            self.scale_orth_z = nn.Linear(in_features, out_features, bias=bias, dtype=dtype)
+            self.scale_orth_z = nn.Linear(
+                in_features, out_features, bias=bias, dtype=dtype
+            )
 
     def forward(self, input):
         lin = self.linear(input)
@@ -440,7 +442,9 @@ class ComplexGaborLayer2D(nn.Module):
 
         if self.mode_3d:
             scale_z = self.scale_orth_z(input)
-            arg = scale_x.abs().square() + scale_y.abs().square() + scale_z.abs().square()
+            arg = (
+                scale_x.abs().square() + scale_y.abs().square() + scale_z.abs().square()
+            )
         else:
             arg = scale_x.abs().square() + scale_y.abs().square()
 
