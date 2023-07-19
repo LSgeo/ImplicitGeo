@@ -131,32 +131,31 @@ def query_inr(
     z_mod=1,
 ):
     """Generate coordinates to query trained INR model"""
-    tensors = tuple(
-        (
-            torch.linspace(-x_r, x_r, steps=h) * xy_mod,
-            torch.linspace(-y_r, y_r, steps=w) * xy_mod,
-            torch.linspace(-z_r, -z_r, steps=c) * z_mod,
+    xyz = torch.cartesian_prod(
+        *tuple(
+            (
+                torch.linspace(-x_r, x_r, steps=h) * xy_mod,
+                torch.linspace(-y_r, y_r, steps=w) * xy_mod,
+                torch.linspace(-z_r, z_r, steps=c) * z_mod,
+            )
         )
-    )
+    ).unsqueeze(0)
+    xyz = xyz.to(device="cuda", non_blocking=True, dtype=torch.float32)
 
-    un = unnormaliser
-    extent = [
-        un(-x_r * xy_mod, "x"),
-        un(x_r * xy_mod, "x"),
-        un(-y_r * xy_mod, "y"),
-        un(y_r * xy_mod, "y"),
-    ]
-    height = un((torch.linspace(-z_r, z_r, steps=c) * z_mod)[i], "z")
-
-    coords = torch.stack(torch.meshgrid(*tensors, indexing="ij"), dim=-1)
-    coords = coords.reshape(-1, len(tensors)).unsqueeze(0).to(torch.float32)
-    coords = coords.to("cuda", non_blocking=True)
-
-    new_u, _ = model(coords)
+    new_u, _ = model(xyz)
     new_u = new_u.detach().cpu().view((h, w, c))
     new_u = unnormaliser(new_u, "u").rot90().numpy()
 
-    return new_u, extent, height
+    return (
+        new_u,
+        [
+            unnormaliser(-x_r * xy_mod, "x"),
+            unnormaliser(x_r * xy_mod, "x"),
+            unnormaliser(-y_r * xy_mod, "y"),
+            unnormaliser(y_r * xy_mod, "y"),
+        ],
+        unnormaliser((torch.linspace(-z_r, z_r, steps=c) * z_mod)[i], "z"),
+    )
 
 
 def plt_inr(
