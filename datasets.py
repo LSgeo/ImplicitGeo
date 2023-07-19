@@ -81,23 +81,17 @@ class INRDataset(Dataset):
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
-    def split_train_val(self, train_pct: float = 0.85, val_pct: float = 0.15):
+    def split_train_val(self, train_pct: float = 0.85):
         """Split the dataset into train and validation sets"""
-        if train_pct + val_pct != 1:
-            raise ValueError("Train and validation split must sum to 1")
 
-        n = len(self.cells)
-        train_n = int(n * train_pct)
-        val_n = n - train_n
+        num_train = int(self.cells.shape[0] * train_pct)
+        idcs = torch.randperm(self.cells.shape[0], device="cpu")
 
-        idcs = np.arange(n)
-        rng.shuffle(idcs)
+        self.train_coords = self.coords[:, idcs[:num_train], :]
+        self.train_cells = self.cells[idcs[:num_train], :]
 
-        self.train_coords = self.coords[:, idcs[:train_n], :]
-        self.train_cells = self.cells[idcs[:train_n], :]
-
-        self.val_coords = self.coords[:, idcs[val_n:], :]
-        self.val_cells = self.cells[idcs[val_n:], :]
+        self.val_coords = self.coords[:, idcs[num_train:], :]
+        self.val_cells = self.cells[idcs[num_train:], :]
 
     def __getitem__(self, idx):
         if idx > 0:
