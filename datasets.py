@@ -55,7 +55,7 @@ class INRDataset(Dataset):
         if mode == "vol_step":
             self.u = self.u[::s, ::s, ::s]
         if mode == "xyz_step":
-            self.coords = self.coords[:, ::s, :]
+            self.coords = self.coords[::s, :]
             self.cells = self.cells[::s, :]
         if mode == "xyz_random_n":
             idcs = rng.choice(
@@ -64,7 +64,7 @@ class INRDataset(Dataset):
                 replace=False,
                 shuffle=False,
             )
-            self.coords = self.coords[:, idcs, :]
+            self.coords = self.coords[idcs, :]
             self.cells = self.cells[idcs, :]
 
     def _normalise(self, inp, var: str, a=-1, b=1):
@@ -87,10 +87,10 @@ class INRDataset(Dataset):
         num_train = int(self.cells.shape[0] * train_pct)
         idcs = torch.randperm(self.cells.shape[0], device="cpu")
 
-        self.train_coords = self.coords[:, idcs[:num_train], :]
+        self.train_coords = self.coords[idcs[:num_train], :]
         self.train_cells = self.cells[idcs[:num_train], :]
 
-        self.val_coords = self.coords[:, idcs[num_train:], :]
+        self.val_coords = self.coords[idcs[num_train:], :]
         self.val_cells = self.cells[idcs[num_train:], :]
 
     def __getitem__(self, idx):
@@ -126,7 +126,7 @@ class PointData3D(INRDataset):
     def get_mgrid(self):
         tensors = tuple((torch.linspace(-1, 1, steps=s) for s in self.u.shape))
         coords = torch.stack(torch.meshgrid(*tensors, indexing="ij"), dim=-1)
-        coords = coords.reshape(-1, len(tensors)).unsqueeze(0)
+        coords = coords.reshape(-1, len(tensors))
         return coords
 
 
@@ -151,18 +151,15 @@ class NCDataset(INRDataset):
             )
         )
 
-        self.coords = (
-            torch.stack(self.coords, dim=-1)
-            .reshape(-1, 3)
-            .unsqueeze(0)
-            .to(torch.float32)
-        )
+        self.coords = torch.stack(self.coords, dim=-1).reshape(-1, 3).to(torch.float32)
         try:
             self.cells = torch.from_numpy(
                 self._normalise(self.ncd.variables[self.variable][:], "u")
             )
         except KeyError:
-            raise KeyError(f"Variable not found in netCDF file, options are {self.ncd.variables.keys()}")
+            raise KeyError(
+                f"Variable not found in netCDF file, options are {self.ncd.variables.keys()}"
+            )
 
         self.cells = self.cells.contiguous().view(-1, 1)
 
@@ -172,7 +169,9 @@ class NCDataset(INRDataset):
         for i, variable in enumerate(variables):
             v = self.ncd.variables[variable][:]
             c = ["k", "r", "g", "b"][i]
-            plt.scatter(np.arange(len(v)), v, s=kwargs.get("s", 0.05), c=c, label=f"{variable}")
+            plt.scatter(
+                np.arange(len(v)), v, s=kwargs.get("s", 0.05), c=c, label=f"{variable}"
+            )
             plt.axhline(np.median(v), c="k", label=f"{variable}_median")
             # plt.title(f"norm mean {((1 - -1) * ((i - i.min()) / (i.max() - i.min())) - 1).mean()}")
             # plt.text(0.5, 60, f"Median Alt: {np.median(i):0.2f}")
