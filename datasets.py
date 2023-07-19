@@ -72,8 +72,8 @@ class INRDataset(Dataset):
 
     def __init__(self):
         super().__init__()
-        self.coords = None
-        self.cells = None
+        self.xyz = None
+        self.u = None
         self.var_ranges = {"x": None, "y": None, "z": None, "u": None}
 
     def __len__(self):
@@ -86,17 +86,17 @@ class INRDataset(Dataset):
         if mode == "vol_step":
             self.u = self.u[::s, ::s, ::s]
         if mode == "xyz_step":
-            self.coords = self.coords[::s, :]
-            self.cells = self.cells[::s, :]
+            self.xyz = self.xyz[::s, :]
+            self.u = self.u[::s, :]
         if mode == "xyz_random_n":
             idcs = rng.choice(
-                np.arange(len(self.cells)),
-                len(self.cells) // s,
+                np.arange(len(self.u)),
+                len(self.u) // s,
                 replace=False,
                 shuffle=False,
             )
-            self.coords = self.coords[idcs, :]
-            self.cells = self.cells[idcs, :]
+            self.xyz = self.xyz[idcs, :]
+            self.u = self.u[idcs, :]
 
     def _normalise(self, inp, var: str, a=-1, b=1):
         """Min-Max Normalise between upper and lower -1 and 1
@@ -124,26 +124,26 @@ class INRDataset(Dataset):
     def split_train_val(self, train_pct: float = 0.85):
         """Split the dataset into train and validation sets"""
 
-        num_train = int(self.cells.shape[0] * train_pct)
-        idcs = torch.randperm(self.cells.shape[0], device="cpu")
+        num_train = int(self.u.shape[0] * train_pct)
+        idcs = torch.randperm(self.u.shape[0], device="cpu")
 
-        self.train_coords = self.coords[idcs[:num_train], :]
-        self.train_cells = self.cells[idcs[:num_train], :]
+        self.train_xyz = self.xyz[idcs[:num_train], :]
+        self.train_u = self.u[idcs[:num_train], :]
 
-        self.val_coords = self.coords[idcs[num_train:], :]
-        self.val_cells = self.cells[idcs[num_train:], :]
+        self.val_xyz = self.xyz[idcs[num_train:], :]
+        self.val_u = self.u[idcs[num_train:], :]
 
     def __getitem__(self, idx):
         if idx > 0:
             raise IndexError("This dataset should always have length 1")
-        if self.cells is None or self.coords is None:
+        if self.u is None or self.xyz is None:
             raise ValueError("Dataset has not been init")
 
         return {
-            "train_coords": self.train_coords,
-            "train_cells": self.train_cells,
-            "val_coords": self.val_coords,
-            "val_cells": self.val_cells,
+            "train_xyz": self.train_xyz,
+            "train_u": self.train_u,
+            "val_xyz": self.val_xyz,
+            "val_u": self.val_u,
         }
 
 
@@ -158,16 +158,17 @@ class PointData3D(INRDataset):
         self.u = merge_z_slices(self.xyz_dir, idx=idx)
         self._subsample(subsample, mode="3d")
         self.og_shape = self.u.shape
-        self.coords = self.get_mgrid()
-        self.cells = torch.from_numpy(self.u).contiguous().view(-1, 1)
-        self.coords = self._normalise(self.coords)
-        self.cells = self._normalise(self.cells)
+        self.xyz = self.get_mgrid()
+        self.u = torch.from_numpy(self.u).contiguous().view(-1, 1)
+        self.xyz = self._normalise(self.xyz, "xyz")
+        raise NotImplementedError("x,y,z need to be normalised independently")
+        self.u = self._normalise(self.u, "z")
 
     def get_mgrid(self):
         tensors = tuple((torch.linspace(-1, 1, steps=s) for s in self.u.shape))
-        coords = torch.stack(torch.meshgrid(*tensors, indexing="ij"), dim=-1)
-        coords = coords.reshape(-1, len(tensors))
-        return coords
+        xyz = torch.stack(torch.meshgrid(*tensors, indexing="ij"), dim=-1)
+        xyz = xyz.reshape(-1, len(tensors))
+        return xyz
 
 
 class NCDataset(INRDataset):
@@ -181,7 +182,7 @@ class NCDataset(INRDataset):
 
     def _load_nc(self):
         self.ncd = netCDF4.Dataset(self.netcdf_path, "r")
-        self.coords = tuple(
+        self.xyz = tuple(
             (
                 torch.from_numpy(self._normalise(self.ncd.variables["x"][:], "x")),
                 torch.from_numpy(self._normalise(self.ncd.variables["y"][:], "y")),
@@ -191,9 +192,9 @@ class NCDataset(INRDataset):
             )
         )
 
-        self.coords = torch.stack(self.coords, dim=-1).reshape(-1, 3).to(torch.float32)
+        self.xyz = torch.stack(self.xyz, dim=-1).reshape(-1, 3).to(torch.float32)
         try:
-            self.cells = torch.from_numpy(
+            self.u = torch.from_numpy(
                 self._normalise(self.ncd.variables[self.variable][:], "u")
             )
         except KeyError:
@@ -201,7 +202,7 @@ class NCDataset(INRDataset):
                 f"Variable not found in netCDF file, options are {self.ncd.variables.keys()}"
             )
 
-        self.cells = self.cells.contiguous().view(-1, 1)
+        self.u = self.u.contiguous().view(-1, 1)
 
     def plot_variables(self, variables: list, **kwargs):
         plt.figure(figsize=kwargs.get("figsize", (10, 5)), dpi=kwargs.get("dpi", 160))
@@ -212,7 +213,7 @@ class NCDataset(INRDataset):
             plt.scatter(
                 np.arange(len(v)), v, s=kwargs.get("s", 0.05), c=c, label=f"{variable}"
             )
-            plt.axhline(np.median(v), c="k", label=f"{variable}_median")
+            plt.axhline(np.mean(v), c="k", label=f"{variable}_mean")
             # plt.title(f"norm mean {((1 - -1) * ((i - i.min()) / (i.max() - i.min())) - 1).mean()}")
             # plt.text(0.5, 60, f"Median Alt: {np.median(i):0.2f}")
 
