@@ -40,7 +40,7 @@ def plt_3d(u, ori="z", levels=25, step=10, **kwargs):
         # norm=colors.PowerNorm(gamma=0.5),
         norm=colors.AsinhNorm(linear_width=kwargs.get("linear_width", 1)),
         levels=np.linspace(u.min(), u.max(), levels),
-        alpha=kwargs.get("alpha", 0.1),
+        alpha=kwargs.get("alpha", 1 / step),
     )
 
     # Create a figure with 3D ax
@@ -155,25 +155,38 @@ def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
 def plt_inr(
     u,
     extent,
-    height,
+    altitude,
     ax_args,
     i=0,
     gt_tiff=None,
+    _vmin=None,
+    _vmax=None,
     **kwargs,
 ):
     """Plot a default INR model output comparison"""
-    fig, [ax0, ax1] = plt.subplots(1, 2, constrained_layout=True, **kwargs)
+    gtt = tifffile.imread(gt_tiff)
+
+    fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
     fig.suptitle(f"INR Model Output Comparison")
 
-    ax1.set_title(f"INR, height = {height:0.2f}")
-    im1 = ax1.imshow(u[:, :, i], extent=extent, **ax_args)
+    ax1.set_title(f"INR, Altitude = {altitude:0.2f} m")
+    im1 = ax1.imshow(u[:, :], extent=extent, **ax_args)
     plt.colorbar(im1, ax=ax1, orientation="horizontal")
 
     if gt_tiff is not None:
         ax0.set_title(f"GT Grid from GA GADDS")
-        ax0.imshow(tifffile.imread(gt_tiff), **ax_args)
+        ax0.imshow(gtt, **ax_args)
         plt.colorbar(im1, ax=ax0, orientation="horizontal")
     else:
         ax0.axis("off")
+
+    imdiff = ax2.imshow(
+        gtt[:445][50:400, 50:400] - u[:, :][50:400, 50:400],
+        vmin=_vmin,
+        vmax=_vmax,
+        cmap=cc.cm.CET_D7,
+        extent=extent,
+    )
+    plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
 
     return fig
