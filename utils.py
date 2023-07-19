@@ -5,6 +5,8 @@ import numpy as np
 import tifffile
 import torch
 
+from datasets import construct_xyz
+
 rng = np.random.default_rng()
 
 if torch.cuda.is_available():
@@ -117,45 +119,37 @@ def plt_3d(u, ori="z", levels=25, step=10, **kwargs):
     plt.show()
 
 
-def query_inr(
-    unnormaliser,
-    model,
-    i=0,
-    h=200,
-    w=200,
-    c=1,
-    x_r=1,
-    y_r=1,
-    z_r=1,
-    xy_mod=1,
-    z_mod=1,
-):
-    """Generate coordinates to query trained INR model"""
-    xyz = torch.cartesian_prod(
-        *tuple(
-            (
-                torch.linspace(-x_r, x_r, steps=h) * xy_mod,
-                torch.linspace(-y_r, y_r, steps=w) * xy_mod,
-                torch.linspace(-z_r, z_r, steps=c) * z_mod,
-            )
-        )
-    ).unsqueeze(0)
-    xyz = xyz.to(device="cuda", non_blocking=True, dtype=torch.float32)
+def query_inr(inr, shape=(100, 100, 1), **kwargs):
+    """Generate coordinates to query trained INR model
+    Suitable for small shapes, otherwise see query_inr_batched
+    kwargs define coord query and are passed to construct_xyz
+    """
+    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
+    xyz = xyz.to(device=device, non_blocking=True, dtype=torch.float32)
 
-    new_u, _ = model(xyz)
-    new_u = new_u.detach().cpu().view((h, w, c))
-    new_u = unnormaliser(new_u, "u").rot90().numpy()
+    u, _ = inr(xyz)
+    u = u.detach().cpu().view(shape)
+    u = u.rot90()
 
-    return (
-        new_u,
-        [
-            unnormaliser(-x_r * xy_mod, "x"),
-            unnormaliser(x_r * xy_mod, "x"),
-            unnormaliser(-y_r * xy_mod, "y"),
-            unnormaliser(y_r * xy_mod, "y"),
-        ],
-        unnormaliser((torch.linspace(-z_r, z_r, steps=c) * z_mod)[i], "z"),
-    )
+    return u.numpy()
+
+
+def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
+    """Generate coordinates to query trained INR model
+    kwargs define coord query and are passed to construct_xyz
+
+    #TODO: if this gets slow, preallocate the storage, fix below
+    # full_uxyz = torch.empty(shape[0] * shape[1] * shape[2])
+    # full_uxyz[int(i*bu.shape[1]):int((i+1)*bu.shape[1])] = bu.view([0,:,0]
+
+    """
+    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
+    # for z in xyz[:, :, 2]:
+    for batch in torch.split(xyz, chunksize, dim=1):
+        batch = batch.to(device=device, non_blocking=True, dtype=torch.float32)
+        u, _ = inr(batch)
+
+        yield u.detach().cpu()
 
 
 def plt_inr(

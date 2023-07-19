@@ -36,6 +36,37 @@ def merge_z_slices(dir_path: str, idx: int = 0, n: int = 50):
     )
 
 
+def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=1):
+    """Construct a coordinate space, perhaps to regularise an INR to.
+    If you are going to do that:
+    Args:
+        shape: 3D h,w,c shape, which determins the resolution of the mesh.
+        {x|y|z}_r should be the same as the normalised training space, i.e. -1 to 1.
+        {x|y|z}_mod allows you to scale the coordinate axis.
+
+        We treat z different - we specify a "middle" slice value, and range around it
+    """
+
+    xyz = torch.cartesian_prod(
+        *tuple(
+            (
+                torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod,
+                torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod,
+                # torch.linspace(-z_r, z_r, steps=shape[2]) * z_mod,
+                torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2]),
+            )
+        )
+    )
+
+    if shape[-1] == 1:  # return mid value if only 1 slice
+        xyz[:, -1] = z_mod
+    if shape[-1] == 2:  # return mid value if only 1 slice
+        # xyz[::2, -1] = z_mod # This works but is stupid.
+        raise ValueError("Z shape should be either 1, or more than 2.")
+
+    return xyz
+
+
 class INRDataset(Dataset):
     """Base class for Implicit Neural Representation Dataset"""
 
@@ -43,7 +74,7 @@ class INRDataset(Dataset):
         super().__init__()
         self.coords = None
         self.cells = None
-        self.pre_norms = {"x": None, "y": None, "z": None, "u": None}
+        self.var_ranges = {"x": None, "y": None, "z": None, "u": None}
 
     def __len__(self):
         return 1  # This is an Implicit Function to overfit 1 sample
@@ -68,16 +99,25 @@ class INRDataset(Dataset):
             self.cells = self.cells[idcs, :]
 
     def _normalise(self, inp, var: str, a=-1, b=1):
-        """Min-Max Normalise between upper and lower -1 and 1"""
+        """Min-Max Normalise between upper and lower -1 and 1
+        This private method records the original ranges
+        """
         self.a = a
         self.b = b
-        self.pre_norms[var] = {"min": inp.min(), "max": inp.max()}
+        self.var_ranges[var] = {"min": inp.min(), "max": inp.max()}
 
         return (b - a) * ((inp - inp.min()) / (inp.max() - inp.min())) + a
 
+    def normalise(self, inp, var: str, a=-1, b=1):
+        """Normalise inputs to the range of the training data set in _normalise"""
+        _min = self.var_ranges[var]["min"]
+        _max = self.var_ranges[var]["max"]
+
+        return (b - a) * ((inp - _min) / (_max - _min)) + a
+
     def unnormalise(self, inp, var: str):
-        _min = self.pre_norms[var]["min"]
-        _max = self.pre_norms[var]["max"]
+        _min = self.var_ranges[var]["min"]
+        _max = self.var_ranges[var]["max"]
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
