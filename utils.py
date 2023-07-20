@@ -131,10 +131,10 @@ def query_inr(inr, shape=(100, 100, 1), **kwargs):
     u = u.detach().cpu().view(shape)
     u = u.rot90()
 
-    return u.numpy()
+    return u.squeeze().numpy()
 
 
-def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
+def generate_inr_batches(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
     """Generate coordinates to query trained INR model
     kwargs define coord query and are passed to construct_xyz
 
@@ -149,39 +149,55 @@ def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
         batch = batch.to(device=device, non_blocking=True, dtype=torch.float32)
         u, _ = inr(batch)
 
-        yield u.detach().cpu()
+        yield u.detach().cpu().squeeze()
+
+
+def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
+    full_u = []
+    for b_u in generate_inr_batches(
+        inr,
+        shape=shape,
+        chunksize=chunksize,
+        z_vec=kwargs.get("z_vec"),
+    ):
+        full_u.append(b_u)
+
+    full_u = torch.hstack(full_u).view(shape).rot90().permute(2, 0, 1).numpy()
+
+    return full_u
 
 
 def plt_inr(
     u,
-    extent,
     altitude,
+    extent,
     ax_args,
-    i=0,
-    gt_tiff=None,
+    z_slice=0,
     _vmin=None,
     _vmax=None,
+    gt_grid=None,
+    cropping=(0, -1),
     **kwargs,
 ):
     """Plot a default INR model output comparison"""
-    gtt = tifffile.imread(gt_tiff)
-
     fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
-    fig.suptitle(f"INR Model Output Comparison")
+    fig.suptitle(f"INR Comparison, Altitude = {altitude:0.2f}")
 
-    ax1.set_title(f"INR, Altitude = {altitude:0.2f} m")
+    ax1.set_title("Implicit Neural Representation")
     im1 = ax1.imshow(u[:, :], extent=extent, **ax_args)
     plt.colorbar(im1, ax=ax1, orientation="horizontal")
 
-    if gt_tiff is not None:
-        ax0.set_title(f"GT Grid from GA GADDS")
-        ax0.imshow(gtt, **ax_args)
+    if gt_grid is not None:
+        ax0.set_title("GT Grid from GA GADDS")
+        ax0.imshow(gt_grid, **ax_args)
         plt.colorbar(im1, ax=ax0, orientation="horizontal")
     else:
         ax0.axis("off")
 
+    c0, c1 = cropping
+    ax2.set_title("Residuals GT - INR")
     imdiff = ax2.imshow(
-        gtt[:445][50:400, 50:400] - u[:, :][50:400, 50:400],
+        gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
         vmin=_vmin,
         vmax=_vmax,
         cmap=cc.cm.CET_D7,
