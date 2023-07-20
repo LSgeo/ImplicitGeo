@@ -36,7 +36,7 @@ def merge_z_slices(dir_path: str, idx: int = 0, n: int = 50):
     )
 
 
-def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=1):
+def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs):
     """Construct a coordinate space, perhaps to regularise an INR to.
     If you are going to do that:
     Args:
@@ -46,6 +46,9 @@ def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=1):
 
         We treat z different - we specify a "middle" slice value, and range around it
     """
+    z_vec = kwargs.get("z_vec")
+    if z_vec is None:
+        z_vec = torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2])
 
     xyz = torch.cartesian_prod(
         *tuple(
@@ -53,7 +56,7 @@ def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=1):
                 torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod,
                 torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod,
                 # torch.linspace(-z_r, z_r, steps=shape[2]) * z_mod,
-                torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2]),
+                z_vec,
             )
         )
     )
