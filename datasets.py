@@ -175,16 +175,16 @@ class PointData3D(INRDataset):
 
 
 class NCDataset(INRDataset):
-    def __init__(self, netcdf_path: Path, variable: str):
+    def __init__(self, file_path: Path, variable: str):
         super().__init__()
 
-        self.netcdf_path = Path(netcdf_path)
+        self.file_path = Path(file_path)
         self.variable = variable
         self._load_nc()
         # self.split_train_val()
 
     def _load_nc(self):
-        self.ncd = netCDF4.Dataset(self.netcdf_path, "r")
+        self.ncd = netCDF4.Dataset(self.file_path, "r")
         self.xyz = tuple(
             (
                 torch.from_numpy(self._normalise(self.ncd.variables["x"][:], "x")),
@@ -224,3 +224,44 @@ class NCDataset(INRDataset):
         plt.xlabel("index")
         plt.ylabel(variable)
         plt.show()
+
+
+class CSVDataset(INRDataset):
+    def __init__(self, file_path: Path, variable: str, usecols: list = None):
+        super().__init__()
+
+        self.file_path = Path(file_path)
+        self.variable = variable
+        self.usecols = usecols
+        self._load_csv()
+
+    def _load_csv(self):
+        self.csv = np.genfromtxt(
+            "/home/luke/PhD/ch3/implicitgeo/data/Ice_Cap.csv",
+            delimiter=",",
+            names=True,
+            usecols=self.usecols,
+        )
+
+        self.xyz = tuple(
+            (
+                torch.from_numpy(self._normalise(self.csv[self.usecols[0]], "x")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[1]], "y")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[2]], "z")),
+            )
+        )
+
+        self.xyz = torch.stack(self.xyz, dim=-1).reshape(-1, 3).to(torch.float32)
+        try:
+            self.u = torch.from_numpy(self._normalise(self.csv[self.usecols[3]], "u"))
+        except KeyError:
+            raise KeyError(
+                f"Variable not found in csv file, options are in {self.csv.dtype}"
+            )
+
+        self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
+
+    def subsample_quadrant(self):
+        idcs = torch.logical_and((self.xyz[:, 0] > 0), (self.xyz[:, 1] < 0))
+        self.xyz = self.xyz[idcs, :]
+        self.u = self.u[idcs, :]
