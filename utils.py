@@ -180,7 +180,11 @@ def plt_inr(
     **kwargs,
 ):
     """Plot a default INR model output comparison"""
-    fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
+    if gt_grid is not None:
+        fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
+    else:
+        fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
+
     fig.suptitle(f"INR Comparison, Altitude = {altitude:0.2f}")
 
     ax1.set_title("Implicit Neural Representation")
@@ -191,18 +195,19 @@ def plt_inr(
         ax0.set_title("GT Grid from GA GADDS")
         ax0.imshow(gt_grid, **ax_args)
         plt.colorbar(im1, ax=ax0, orientation="horizontal")
-    else:
-        ax0.axis("off")
 
-    c0, c1 = cropping
-    ax2.set_title("Residuals GT - INR")
-    imdiff = ax2.imshow(
-        gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
-        vmin=_vmin,
-        vmax=_vmax,
-        cmap=cc.cm.CET_D7,
-        extent=extent,
-    )
-    plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
+        c0, c1 = cropping
+        ax2.set_title("Residuals GT - INR")
+        imdiff = ax2.imshow(
+            gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
+            vmin=_vmin,
+            vmax=_vmax,
+            cmap=cc.cm.CET_D7,
+            extent=extent,
+        )
+        plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
+    # else:
+    #     ax0.axis("off")
+    #     ax2.axis("off")
 
     return fig
