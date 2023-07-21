@@ -1,11 +1,7 @@
-import random
-
 import numpy as np
 import torch
 from torch import nn
 
-torch.manual_seed(seed := 0)
-random.seed(seed)
 rng = np.random.default_rng()
 
 
@@ -16,7 +12,7 @@ class RLoss:
     Presented at the Advances in Neural Information Processing Systems.
     """
 
-    def __init__(self, Sigma: float = 1e-3) -> None:
+    def __init__(self, Sigma: float = 1e-3, device="cuda") -> None:
         """Regularisation loss for coordinate MLPs.
         Args:
             val: Represents search radius for the regularisation loss. "Small values".
@@ -27,9 +23,10 @@ class RLoss:
             loc=torch.zeros(3),
             covariance_matrix=torch.eye(3) * Sigma,
         )
+        self.device = device
 
     def __call__(
-        self, model: torch.nn.Module, xbar: torch.Tensor, n_samples: int, device="cuda"
+        self, model: torch.nn.Module, xbar: torch.Tensor, n_samples: int
     ) -> torch.Tensor:
         """Equation 11
         Args:
@@ -37,7 +34,7 @@ class RLoss:
             xbar: Randomly selected from the coordinate space
             n_samples: Number of random coord samples
         """
-        Eps = self.Eps.sample((1, n_samples)).to(device)  # batched 1
+        Eps = self.Eps.sample((1, n_samples)).to(self.device)  # batched 1
 
         return torch.linalg.vector_norm(
             (model.forward_until_g(xbar)) - model.forward_until_g(xbar + Eps)
