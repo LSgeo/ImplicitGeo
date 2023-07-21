@@ -5,7 +5,7 @@ import numpy as np
 import tifffile
 import torch
 
-from datasets import construct_xyz
+from geoinr.datasets import construct_xyz
 
 rng = np.random.default_rng()
 
