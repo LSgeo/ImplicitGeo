@@ -130,12 +130,52 @@ class INRDataset(Dataset):
         if self.u is None or self.xyz is None:
             raise ValueError("Dataset has not been init")
 
-        return {
-            "train_xyz": self.train_xyz,
-            "train_u": self.train_u,
-            "val_xyz": self.val_xyz,
-            "val_u": self.val_u,
-        }
+        return {"xyz": self.xyz, "u": self.u}
+
+
+class BatchedINRDataset(INRDataset):
+    """Batched Implicit Neural Representation Dataset"""
+
+    def __init__(self):
+        super().__init__()
+        self.xyz = torch.Tensor()
+        self.u = torch.Tensor()
+        self.var_ranges = {}
+
+    def __len__(self):
+        return len(self.u)
+
+    def __getitem__(self, idx):
+        return {"xyz": self.xyz, "u": self.u}
+
+
+class CustomDataloader:
+    def __init__(self, dataset, batch_size: int, pin_memory=False, **kwargs):
+        if kwargs:  # Quick swap with normal dataloader
+            print(f"Yeeting unused kwargs {kwargs} into the void")
+        self.dataset = dataset[0]  # This only works with BatchedINRdset
+        self.steps_per_epoch = len(dataset)
+        self.pin_memory = pin_memory
+        if batch_size == -1:
+            self.batch_size = len(dataset)
+        else:
+            self.batch_size = batch_size
+
+        self.prepare_batch_tensors()
+
+    def prepare_batch_tensors(self):
+        d = self.dataset
+
+        if self.pin_memory:
+            self.xyz = torch.split(d["xyz"].pin_memory(), self.batch_size)
+            self.u = torch.split(d["u"].pin_memory(), self.batch_size)
+        else:
+            self.xyz = torch.split(d["xyz"], self.batch_size)
+            self.u = torch.split(d["u"], self.batch_size)
+
+    def __iter__(self):
+        yield from zip(self.xyz, self.u)
+
 
 
 class PointData3D(INRDataset):
@@ -214,7 +254,7 @@ class NCDataset(INRDataset):
         plt.show()
 
 
-class CSVDataset(INRDataset):
+class CSVDataset(BatchedINRDataset):
     def __init__(self, file_path: Path, variable: str, usecols: list = None):
         super().__init__()
 
