@@ -124,18 +124,6 @@ class INRDataset(Dataset):
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
-    def split_train_val(self, train_pct: float = 0.85):
-        """Split the dataset into train and validation sets"""
-
-        num_train = int(self.u.shape[0] * train_pct)
-        idcs = torch.randperm(self.u.shape[0], device="cpu")
-
-        self.train_xyz = self.xyz[idcs[:num_train], :]
-        self.train_u = self.u[idcs[:num_train], :]
-
-        self.val_xyz = self.xyz[idcs[num_train:], :]
-        self.val_u = self.u[idcs[num_train:], :]
-
     def __getitem__(self, idx):
         if idx > 0:
             raise IndexError("This dataset should always have length 1")
