@@ -67,6 +67,13 @@ class INRDataset(Dataset):
 
         return self
 
+    def __getitem__(self, idx):
+        """This should not be used for batched training.
+        (i.e. Don't use torch.DataLoader with this dataset - it will be slow!)
+        """
+        return {"xyz": self.xyz[idx], "u": self.u[idx]}
+
+
 class NCDataset(INRDataset):
     def __init__(self, file_path: Path, variable: str):
         super().__init__()
@@ -123,15 +130,74 @@ class NCDataset(INRDataset):
 
         self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
 
-    def __getitem__(self, idx):
-        """This should not be used for batched training.
-        (i.e. Don't use torch.DataLoader with this dataset - it will be slow!)
-        """
-        return {"xyz": self.xyz[idx], "u": self.u[idx]}
+        # self.ncd.close()  # Only if needed to reduce CPU RAM
+
+    def plot_variables(self, variables: list, **kwargs):
+        plt.figure(figsize=kwargs.get("figsize", (10, 5)), dpi=kwargs.get("dpi", 160))
+
+        for i, variable in enumerate(variables):
+            v = self.ncd.variables[variable][:]
+            c = ["k", "r", "g", "b"][i]
+            plt.scatter(
+                np.arange(len(v)), v, s=kwargs.get("s", 0.05), c=c, label=f"{variable}"
+            )
+            plt.axhline(np.mean(v), c="k", label=f"{variable}_mean")
+            # plt.title(f"norm mean {((1 - -1) * ((i - i.min()) / (i.max() - i.min())) - 1).mean()}")
+            # plt.text(0.5, 60, f"Median Alt: {np.median(i):0.2f}")
+
+        plt.legend()
+        plt.xlabel("index")
+        plt.ylabel(variable)
+        plt.show()
+
+
+class CSVDataset(INRDataset):
+    def __init__(self, file_path: Path, variable: str, usecols: list = None):
+        super().__init__()
+
+        self.file_path = Path(file_path)
+        self.variable = variable
+        self.usecols = usecols
+        self._load_csv()
+
+    def _override_variable(self, var: str, value: float):
+        self.csv[var][0::2] = value + torch.randn(1)
+        self.csv[var][1::2] = value - torch.randn(1)
+
+    def _load_csv(self):
+        self.csv = np.genfromtxt(
+            self.file_path, delimiter=",", names=True, usecols=self.usecols
+        )
+
+        self._override_variable(self.usecols[2], 1500.0)
+
+        self.xyz = tuple(
+            (
+                torch.from_numpy(self._normalise(self.csv[self.usecols[0]], "x")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[1]], "y")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[2]], "z")),
+            )
+        )
+
+        self.xyz = torch.stack(self.xyz, dim=-1).reshape(-1, 3).to(torch.float32)
+        try:
+            self.u = torch.from_numpy(self._normalise(self.csv[self.usecols[3]], "u"))
+        except KeyError:
+            raise KeyError(
+                f"Variable not found in csv file, options are in {self.csv.dtype}"
+            )
+
+        self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
 
 
 class BatchingDataloader:
-    def __init__(self, dataset: torch.utils.data.Subset, batch_size: int, pin_memory=False, **kwargs):
+    def __init__(
+        self,
+        dataset: torch.utils.data.Subset,
+        batch_size: int,
+        pin_memory=False,
+        **kwargs,
+    ):
         """Take Subset dataset and split into batches.
         Replaces torch.Dataloader
         """
