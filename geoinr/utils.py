@@ -119,22 +119,19 @@ def plt_3d(u, ori="z", levels=25, step=10, **kwargs):
     plt.show()
 
 
-def query_inr(inr, shape=(100, 100, 1), **kwargs):
+def query_inr(inr, shape=(200, 200, 10), **kwargs):
     """Generate coordinates to query trained INR model
     Suitable for small shapes, otherwise see query_inr_batched
     kwargs define coord query and are passed to construct_xyz
     """
     xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
-    xyz = xyz.to(device=device, non_blocking=True, dtype=torch.float32)
+    xyz = xyz.to(device=device, non_blocking=True)
 
     u, _ = inr(xyz)
-    u = u.detach().cpu().view(shape)
-    u = u.rot90()
-
-    return u.squeeze().numpy()
+    return u.detach().cpu().view(shape).rot90().squeeze().numpy()
 
 
-def generate_inr_batches(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
+def generate_inr_batches(inr, shape, chunksize, **kwargs):
     """Generate coordinates to query trained INR model
     kwargs define coord query and are passed to construct_xyz
 
@@ -146,25 +143,18 @@ def generate_inr_batches(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs)
     xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
     # for z in xyz[:, :, 2]:
     for batch in torch.split(xyz, chunksize, dim=1):
-        batch = batch.to(device=device, non_blocking=True, dtype=torch.float32)
+        batch = batch.to(device=device, non_blocking=True)
         u, _ = inr(batch)
 
-        yield u.detach().cpu().squeeze()
+        yield u.detach().cpu()
 
 
 def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
     full_u = []
-    for b_u in generate_inr_batches(
-        inr,
-        shape=shape,
-        chunksize=chunksize,
-        z_vec=kwargs.get("z_vec"),
-    ):
+    for b_u in generate_inr_batches(inr, shape, chunksize, **kwargs):
         full_u.append(b_u)
 
-    full_u = torch.hstack(full_u).view(shape).rot90().permute(2, 0, 1).numpy()
-
-    return full_u
+    return torch.hstack(full_u).view(shape).rot90().squeeze().numpy()
 
 
 def plt_inr(
