@@ -31,20 +31,20 @@ class INRDataset(Dataset):
         """
         self.a = a
         self.b = b
-        self.var_ranges[var] = {"min": inp.min(), "max": inp.max()}
+        self.var_ranges[var] = (np.min(inp), np.max(inp))
 
-        return (b - a) * ((inp - inp.min()) / (inp.max() - inp.min())) + a
+        return (b - a) * ((inp - np.min(inp)) / (np.max(inp) - np.min(inp))) + a
 
     def normalise(self, inp, var: str, a=-1, b=1):
         """Normalise inputs to the range of the training data set in _normalise"""
-        _min = self.var_ranges[var]["min"]
-        _max = self.var_ranges[var]["max"]
+        _min = min(self.var_ranges[var])
+        _max = max(self.var_ranges[var])
 
         return (b - a) * ((inp - _min) / (_max - _min)) + a
 
     def unnormalise(self, inp, var: str):
-        _min = self.var_ranges[var]["min"]
-        _max = self.var_ranges[var]["max"]
+        _min = min(self.var_ranges[var])
+        _max = max(self.var_ranges[var])
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
