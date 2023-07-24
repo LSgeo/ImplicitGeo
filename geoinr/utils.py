@@ -201,3 +201,28 @@ def plt_inr(
     #     ax2.axis("off")
 
     return fig
+
+
+def plt_sample_locs(dset, var=None, unnormalise_fn=None):
+    if unnormalise_fn is not None:
+        x = unnormalise_fn(dset.xyz[:, 0], "x")
+        y = unnormalise_fn(dset.xyz[:, 1], "y")
+    else:
+        x = dset.xyz[:, 0]
+        y = dset.xyz[:, 1]
+
+    if var == "z":
+        clr = dset.xyz[:, 2].numpy().data
+
+    plt.figure(figsize=(10, 10), dpi=100)
+    plt.scatter(x, y, s=1, facecolors=clr, edgecolors=clr, cmap=cc.cm.CET_L1)
+    plt.colorbar(orientation="horizontal")
+    # plt.scatter(
+    #     dataset.unnormalise(val_dataset.dataset.xyz[:, 0], "x"),
+    #     dataset.unnormalise(val_dataset.dataset.xyz[:, 1], "y"),
+    #     s=1,
+    #     facecolors="r",
+    #     edgecolors="r",
+    # )
+    plt.xlim(dset.extent[0], dset.extent[1])
+    plt.ylim(dset.extent[2], dset.extent[3])
