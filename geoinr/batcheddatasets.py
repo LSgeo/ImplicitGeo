@@ -21,6 +21,7 @@ class INRDataset(Dataset):
         self.xyz = None
         self.u = None
         self.var_ranges = {"x": None, "y": None, "z": None, "u": None}
+        self.extent = (-1, 1, -1, 1, -1, 1)
 
     def __len__(self):
         return len(self.u)
@@ -48,6 +49,22 @@ class INRDataset(Dataset):
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
+    def subsample_wesnbt(self, extent: tuple):
+        """Normalised coordsys (W, E, S, N, lowest z, highest z)"""
+        self.extent = extent
+        idcs = (
+            (self.xyz[:, 0] >= extent[0])
+            & (self.xyz[:, 0] <= extent[1])
+            & (self.xyz[:, 1] >= extent[2])
+            & (self.xyz[:, 1] <= extent[3])
+            & (self.xyz[:, 2] >= extent[4])
+            & (self.xyz[:, 2] <= extent[5])
+        )
+
+        self.xyz = self.xyz[idcs]
+        self.u = self.u[idcs]
+
+        return self
 
 class NCDataset(INRDataset):
     def __init__(self, file_path: Path, variable: str):
