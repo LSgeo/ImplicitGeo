@@ -21,6 +21,7 @@ class INRDataset(Dataset):
         self.xyz = None
         self.u = None
         self.var_ranges = {"x": None, "y": None, "z": None, "u": None}
+        self.invalid_points = 0
         self.extent = (-1, 1, -1, 1, -1, 1)
 
     def __len__(self):
@@ -74,29 +75,53 @@ class NCDataset(INRDataset):
         self.variable = variable
         self._load_nc()
 
+    def _prepare_data(self):
+        if "inf" not in self.ncd.geospatial_bounds:  # Hope for the best
+            return (
+                self.ncd.variables["x"][:],
+                self.ncd.variables["y"][:],
+                self.ncd.variables["altitude"][:],
+                self.ncd.variables[self.variable][:],
+            )
+        else:  # Found potential NaNs in xyz
+            valid_idcs = np.all(
+                (
+                    np.isfinite(self.ncd.variables["x"][:]),
+                    np.isfinite(self.ncd.variables["y"][:]),
+                    np.isfinite(self.ncd.variables["altitude"][:]),
+                    ~self.ncd.variables[self.variable][:].mask,
+                ),  # not masked is ok
+                axis=0,
+            )
+            self.invalid_points = self.ncd.variables["x"][:].size - valid_idcs.sum()
+            x = self.ncd.variables["x"][:][valid_idcs]
+            y = self.ncd.variables["y"][:][valid_idcs]
+            z = self.ncd.variables["altitude"][:][valid_idcs]
+            u = self.ncd.variables[self.variable][:][valid_idcs]
+            return x, y, z, u
+
     def _load_nc(self):
         self.ncd = netCDF4.Dataset(self.file_path, "r")
+
+        x, y, z, u = self._prepare_data()
+
         self.xyz = tuple(
             (
-                torch.from_numpy(self._normalise(self.ncd.variables["x"][:], "x")),
-                torch.from_numpy(self._normalise(self.ncd.variables["y"][:], "y")),
-                torch.from_numpy(
-                    self._normalise(self.ncd.variables["altitude"][:], "z")
-                ),
+                torch.from_numpy(self._normalise(x, "x")),
+                torch.from_numpy(self._normalise(y, "y")),
+                torch.from_numpy(self._normalise(z, "z")),
             )
         )
 
         self.xyz = torch.stack(self.xyz, dim=-1).reshape(-1, 3).to(torch.float32)
         try:
-            self.u = torch.from_numpy(
-                self._normalise(self.ncd.variables[self.variable][:], "u")
-            )
+            self.u = torch.from_numpy(self._normalise(u, "u"))
         except KeyError:
             raise KeyError(
                 f"Variable not found in netCDF file, options are {self.ncd.variables.keys()}"
             )
 
-        self.u = self.u.contiguous().view(-1, 1)
+        self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
 
     def __getitem__(self, idx):
         """This should not be used for batched training.
