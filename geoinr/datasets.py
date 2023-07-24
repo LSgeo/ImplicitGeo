@@ -46,20 +46,13 @@ def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs):
 
         We treat z different - we specify a "middle" slice value, and range around it
     """
-    z_vec = kwargs.get("z_vec")
-    if z_vec is None:
-        z_vec = torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2])
-
-    xyz = torch.cartesian_prod(
-        *tuple(
-            (
-                torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod,
-                torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod,
-                # torch.linspace(-z_r, z_r, steps=shape[2]) * z_mod,
-                z_vec,
-            )
-        )
+    x_vec = kwargs.get("x_vec", torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod)
+    y_vec = kwargs.get("y_vec", torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod)
+    z_vec = kwargs.get(
+        "z_vec", torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2])
     )
+
+    xyz = torch.cartesian_prod(*tuple((x_vec, y_vec, z_vec)))
 
     if shape[-1] == 1:  # return mid value if only 1 slice
         xyz[:, -1] = z_mod
@@ -177,7 +170,6 @@ class CustomDataloader:
         yield from zip(self.xyz, self.u)
 
 
-
 class PointData3D(INRDataset):
     """Construct a dataset for SIREN comprising 3D point coordinates
     and point values
@@ -254,7 +246,7 @@ class NCDataset(INRDataset):
         plt.show()
 
 
-class CSVDataset(BatchedINRDataset):
+class CSVDataset(INRDataset):
     def __init__(self, file_path: Path, variable: str, usecols: list = None):
         super().__init__()
 
@@ -265,10 +257,7 @@ class CSVDataset(BatchedINRDataset):
 
     def _load_csv(self):
         self.csv = np.genfromtxt(
-            "/home/luke/PhD/ch3/implicitgeo/data/Ice_Cap.csv",
-            delimiter=",",
-            names=True,
-            usecols=self.usecols,
+            self.file_path, delimiter=",", names=True, usecols=self.usecols
         )
 
         self.xyz = tuple(
@@ -288,8 +277,3 @@ class CSVDataset(BatchedINRDataset):
             )
 
         self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
-
-    def subsample_quadrant(self):
-        idcs = torch.logical_and((self.xyz[:, 0] > 0), (self.xyz[:, 1] < 0))
-        self.xyz = self.xyz[idcs, :]
-        self.u = self.u[idcs, :]
