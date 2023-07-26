@@ -162,7 +162,6 @@ def plt_inr(
     altitude,
     extent,
     ax_args,
-    z_slice=0,
     _vmin=None,
     _vmax=None,
     gt_grid=None,
@@ -182,11 +181,11 @@ def plt_inr(
     plt.colorbar(im1, ax=ax1, orientation="horizontal")
 
     if gt_grid is not None:
+        c0, c1 = cropping
         ax0.set_title("GT Grid from GA GADDS")
-        ax0.imshow(gt_grid, **ax_args)
+        ax0.imshow(gt_grid[c0:c1, c0:c1], **ax_args)
         plt.colorbar(im1, ax=ax0, orientation="horizontal")
 
-        c0, c1 = cropping
         ax2.set_title("Residuals GT - INR")
         imdiff = ax2.imshow(
             gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
@@ -203,7 +202,7 @@ def plt_inr(
     return fig
 
 
-def plt_sample_locs(dset, var=None, unnormalise_fn=None):
+def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
     if unnormalise_fn is not None:
         x = unnormalise_fn(dset.xyz[:, 0], "x")
         y = unnormalise_fn(dset.xyz[:, 1], "y")
@@ -211,7 +210,7 @@ def plt_sample_locs(dset, var=None, unnormalise_fn=None):
         x = dset.xyz[:, 0]
         y = dset.xyz[:, 1]
 
-    if var == "z":
+    if clr == "z":
         clr = dset.xyz[:, 2].numpy().data
 
     plt.figure(figsize=(10, 10), dpi=100)
