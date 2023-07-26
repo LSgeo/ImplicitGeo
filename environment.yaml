@@ -1,14 +1,13 @@
 name: geosiren
 channels:
-  - nvidia
   - pytorch
   - conda-forge
 dependencies:
   - python[version='>=3.11']
-  - pytorch::pytorch[version='>=1.13']
-  - pytorch::torchvision[version='>=0.14']
-  - pytorch-cuda[version='>=11.7']
-  - comet_ml::comet_ml
+  - pytorch::pytorch[version='>=2.0.1']
+  - pytorch::torchvision[version='>=0.15']
+  - pytorch-cuda[version='>=11.8']
+  # - comet_ml::comet_ml
   - colorcet
   - matplotlib
   - numpy
@@ -17,8 +16,6 @@ dependencies:
   - verde
   - black
   - flake8
-  - jupyter
   - ipykernel
-  - nb_conda
   - tqdm
   - rope
