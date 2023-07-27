@@ -46,6 +46,10 @@ def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs):
 
         We treat z different - we specify a "middle" slice value, and range around it
     """
+
+    if any(kw in kwargs for kw in ["zvec", "zmod"]):
+        raise NotImplementedError("Don't forget the underscore!")
+
     x_vec = kwargs.get("x_vec", torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod)
     y_vec = kwargs.get("y_vec", torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod)
     z_vec = kwargs.get(
