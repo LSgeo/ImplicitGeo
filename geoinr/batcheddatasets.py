@@ -236,3 +236,25 @@ class BatchingDataloader:
 
     def __iter__(self):
         yield from zip(self.xyz, self.u)
+
+
+def get_agg_data():
+    """Get Gravity Gradient data
+    https://geophys-data.geoscience.nsw.gov.au/air_surveys/AIR_2003_gov_Broken_Hill_AGG_Mag_0350.zip
+    """
+    raise NotImplementedError()
+    # import pandas as pd
+
+    # names = "X Y LONGITUDE LATITUDE ALTITUDE FIDUCIAL RADAR ALT_DEM DEM TURBULENCE Err_NE Err_UV T_DD T_NE T_UV A_SJT_2p75_NE_ML A_SJT_2p75_UV_ML B_SJT_2p75_NE_ML B_SJT_2p75_UV_ML gD_FOURIER_2p75_400_ML_orig GDD_FOURIER_2p75_400_ML_orig GNE_FOURIER_2p75_400_ML_orig GUV_FOURIER_2p75_400_ML_orig DRAPESURFACE_FOURIER_FS gD_FOURIER_0p0_400_ML GDD_FOURIER_0p0_400_ML GNE_FOURIER_0p0_400_ML GUV_FOURIER_0p0_400_ML DRAPESURFACE_EQUIV gD_EQUIV_2p75_ML GDD_EQUIV_2p75_ML GNE_EQUIV_2p75_ML GUV_EQUIV_2p75_ML gD_FOURIER_2p75_400_ML GDD_FOURIER_2p75_400_ML GNE_FOURIER_2p75_400_ML GUV_FOURIER_2p75_400_ML GS_Fiducial GS_StrLine".split()
+    # usecols = [
+    #     "X Y DRAPESURFACE_EQUIV gD_EQUIV_2p75_ML GDD_EQUIV_2p75_ML GNE_EQUIV_2p75_ML GUV_EQUIV_2p75_ML"
+    # ]
+
+    # dat = pd.read_csv(
+    #     "AIR_2003_gov_Broken_Hill_AGG_Mag_0350/Reprocessed_2011/Located_Data/AGG.dat",
+    #     delim_whitespace=True,
+    #     names=names,
+    #     usecols=usecols,
+    #     na_values="*",
+    #     comment="/",
+    # )
