@@ -204,6 +204,11 @@ class BatchingDataloader:
         if kwargs:  # Quick swap with normal dataloader
             print(f"Yeeting unused kwargs {kwargs} into the void")
 
+        self.name = dataset.dataset.file_path.name
+        self.extent = dataset.dataset.extent
+        self.var_ranges = dataset.dataset.var_ranges
+        self.normalise = dataset.dataset.normalise
+        self.unnormalise = dataset.dataset.unnormalise
         self.dataset = dataset[:]  # Get all subset data
         self.pin_memory = pin_memory
         if batch_size == -1:
