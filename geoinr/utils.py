@@ -225,3 +225,12 @@ def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
     # )
     plt.xlim(dset.extent[0], dset.extent[1])
     plt.ylim(dset.extent[2], dset.extent[3])
+
+
+def plt_kwargs(suptitle, ax_args, **kwargs):
+    fig, axs = plt.subplots(1, len(kwargs.keys()), constrained_layout=True, figsize=(len(kwargs.keys()) * 4, 4))
+    fig.suptitle(suptitle)
+    for ax, (name, im) in zip(axs, kwargs.items()):
+        ax.set_title(name)
+        cim = ax.imshow(im, **ax_args)
+        plt.colorbar(cim, ax=ax, orientation="horizontal")
