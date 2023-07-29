@@ -18,9 +18,17 @@ class INRDataset(Dataset):
 
     def __init__(self):
         super().__init__()
+        self.easting = "e"
+        self.northing = "n"
+        self.upward = "up"
         self.xyz = None
         self.u = None
-        self.var_ranges = {"x": None, "y": None, "z": None, "u": None}
+        self.var_ranges = {
+            "e": None,
+            "n": None,
+            "up": None,
+            "u": None,
+        }
         self.invalid_points = 0
         self.extent = (-1, 1, -1, 1, -1, 1)
 
@@ -82,52 +90,69 @@ class NCDataset(INRDataset):
         self.variable = variable
         self._load_nc()
 
+    def find_variable_name(self, possible_names: list):
+        matched = next(
+            k for k in self.ncd.variables.keys() if k.lower() in possible_names
+        )
+        if not matched:
+            raise ValueError(
+                f"Couldn't find a match in {possible_names} for {self.ncd.variables.keys()}"
+            )
+
+        # While we are here, check for value variable name:
+        if self.variable in possible_names and matched != self.variable:
+            print("\n################")
+            print(f"'{self.variable}' not found, using '{matched}' instead")
+            print("################\n")
+
+        return matched
+
     def _prepare_data(self):
         if "inf" not in self.ncd.geospatial_bounds:  # Hope for the best
             return (
-                self.ncd.variables["x"][:],
-                self.ncd.variables["y"][:],
-                self.ncd.variables["altitude"][:],
+                self.ncd.variables[self.easting][:],
+                self.ncd.variables[self.northing][:],
+                self.ncd.variables[self.upward][:],
                 self.ncd.variables[self.variable][:],
             )
         else:  # Found potential NaNs in xyz
             valid_idcs = np.all(
                 (
-                    np.isfinite(self.ncd.variables["x"][:]),
-                    np.isfinite(self.ncd.variables["y"][:]),
-                    np.isfinite(self.ncd.variables["altitude"][:]),
+                    np.isfinite(self.ncd.variables[self.easting][:]),
+                    np.isfinite(self.ncd.variables[self.northing][:]),
+                    np.isfinite(self.ncd.variables[self.upward][:]),
                     ~self.ncd.variables[self.variable][:].mask,
                 ),  # not masked is ok
                 axis=0,
             )
-            self.invalid_points = self.ncd.variables["x"][:].size - valid_idcs.sum()
-            x = self.ncd.variables["x"][:][valid_idcs]
-            y = self.ncd.variables["y"][:][valid_idcs]
-            z = self.ncd.variables["altitude"][:][valid_idcs]
+            self.invalid_points = (
+                self.ncd.variables[self.easting][:].size - valid_idcs.sum()
+            )
+            x = self.ncd.variables[self.easting][:][valid_idcs]
+            y = self.ncd.variables[self.northing][:][valid_idcs]
+            z = self.ncd.variables[self.upward][:][valid_idcs]
             u = self.ncd.variables[self.variable][:][valid_idcs]
             return x, y, z, u
 
     def _load_nc(self):
         self.ncd = netCDF4.Dataset(self.file_path, "r")
+        self.easting = self.find_variable_name(["easting", "x"])
+        self.northing = self.find_variable_name(["northing", "y"])
+        self.upward = self.find_variable_name(["upward", "altitude"])
+        self.variable = self.find_variable_name([self.variable, "mag_microLevelled"])
 
         x, y, z, u = self._prepare_data()
 
         self.xyz = tuple(
             (
-                torch.from_numpy(self._normalise(x, "x")),
-                torch.from_numpy(self._normalise(y, "y")),
-                torch.from_numpy(self._normalise(z, "z")),
+                torch.from_numpy(self._normalise(x, "e")),
+                torch.from_numpy(self._normalise(y, "n")),
+                torch.from_numpy(self._normalise(z, "up")),
             )
         )
-
         self.xyz = torch.stack(self.xyz, dim=-1).reshape(-1, 3).to(torch.float32)
-        try:
-            self.u = torch.from_numpy(self._normalise(u, "u"))
-        except KeyError:
-            raise KeyError(
-                f"Variable not found in netCDF file, options are {self.ncd.variables.keys()}"
-            )
 
+        self.u = torch.from_numpy(self._normalise(u, "u"))
         self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
 
         # self.ncd.close()  # Only if needed to reduce CPU RAM
@@ -173,9 +198,9 @@ class CSVDataset(INRDataset):
 
         self.xyz = tuple(
             (
-                torch.from_numpy(self._normalise(self.csv[self.usecols[0]], "x")),
-                torch.from_numpy(self._normalise(self.csv[self.usecols[1]], "y")),
-                torch.from_numpy(self._normalise(self.csv[self.usecols[2]], "z")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[0]], "e")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[1]], "n")),
+                torch.from_numpy(self._normalise(self.csv[self.usecols[2]], "up")),
             )
         )
 

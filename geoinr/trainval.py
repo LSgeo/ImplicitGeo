@@ -90,7 +90,7 @@ class Exp:
 
     def log_figure(self):
         u = query_inr(
-            self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(39, "z")
+            self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(39, "up")
         )
 
         fig = plt_inr(
