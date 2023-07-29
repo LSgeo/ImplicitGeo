@@ -20,21 +20,65 @@ class Exp:
         self.opt = opt
         self.step = 0
         self.device = opt["device"]
+        self.scaler = torch.cuda.amp.GradScaler(enabled=self.opt["use_amp"])
+
+    def train_inr(self):
+        self.init_comet()
+        trial = None
+
+        self.optim = torch.optim.Adam(
+            lr=self.opt["initial_lr"], params=self.f.parameters()
+        )
+        self.sched = torch.optim.lr_scheduler.OneCycleLR(
+            self.optim,
+            steps_per_epoch=len(self.train_dataloader),
+            epochs=self.opt["total_epochs"],
+            max_lr=self.opt["initial_lr"],
+        )
+
+        self.cri_mse = torch.nn.MSELoss()
+        self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
+
+        self.step = 0
+        for epoch in tqdm(
+            range(self.opt["total_epochs"]), unit="epoch", desc="Training"
+        ):
+            self.exp.set_epoch(epoch)
+            self.train_epoch()
+
+            with torch.no_grad():
+                if (epoch + 1) % 100 == 0:
+                    val_metric = self.val_epoch()
+                if (epoch + 1) % 250 == 0:
+                    self.log_figure()
+
+            if trial is not None:
+                trial.report(val_metric, self.step)
+                if trial.should_prune():
+                    self.exp.add_tag("Pruned")
+                    self.exp.end()
+                    raise optuna.TrialPruned()
+
+        self.exp.end()
+        print(f"Total steps: {self.step}")
+
+        return self.f
 
     def train_epoch(self):
         self.f.train()
         self.f.return_coords = False
+
+        for i, batch in enumerate(self.train_dataloader):
             self.exp.set_step(self.step)
-            self.exp.log_parameter("lr", self.sched.get_last_lr())
+            if i % 200 == 0:
+                self.exp.log_parameter("lr", self.sched.get_last_lr())
 
             # Send the data to the model and predict
             train_xyz = batch[0].to(self.device, non_blocking=True)
             train_u = batch[1].to(self.device, non_blocking=True)
 
             with torch.amp.autocast(self.opt["device"], enabled=self.opt["use_amp"]):
-                pred_u, gt_xyz = self.f(train_xyz)
-                # pred_u = pred_u.to(dtype=torch.bfloat16)
-                gt_xyz = None  # Not needed here TODO method to prevent generation
+                pred_u, _ = self.f(train_xyz)
 
                 # Calculate Loss
                 loss_mse = self.cri_mse(pred_u, train_u)
@@ -45,16 +89,20 @@ class Exp:
                 else:
                     loss_total = loss_mse
 
+            self.scaler.scale(loss_total).backward()
+            self.scaler.step(self.optim)
+            self.scaler.update()
+            # loss_total.backward()
             self.optim.zero_grad(set_to_none=True)
-            loss_total.backward()
-            self.optim.step()
+            # self.optim.step()
             self.sched.step()
 
             # Log metrics
-            self.exp.log_metric("Train Loss Total", loss_total.item())
-            self.exp.log_metric("Train Loss MSE", loss_mse.item())
-            if self.opt["weight_rloss"] > 0:
-                self.exp.log_metric("Train Loss Regularisation", loss_r.item())
+            if i % 250 == 0:
+                self.exp.log_metric("Train Loss Total", loss_total.item())
+                self.exp.log_metric("Train Loss MSE", loss_mse.item())
+                if self.opt["weight_rloss"] > 0:
+                    self.exp.log_metric("Train Loss Regularisation", loss_r.item())
 
             self.step += 1
 
@@ -63,12 +111,11 @@ class Exp:
         self.f.return_coords = False
 
         avg_metric = []
-        for viter, d in enumerate(self.val_dataloader):
+        for vi, d in enumerate(self.val_dataloader):
             val_xyz = d[0].to(self.device, non_blocking=True)
             val_u = d[1].to(self.device, non_blocking=True)
 
-            pred_u, gt_xyz = self.f(val_xyz)
-            gt_xyz = None
+            pred_u, _ = self.f(val_xyz)
 
             avg_metric.append(self.cri_mse(pred_u, val_u).item())
 
@@ -105,49 +152,6 @@ class Exp:
         )
         self.exp.log_figure("INR: Selected height", figure=fig, step=self.step)
         plt.close()
-
-    def train_inr(self):
-        # Run
-        self.init_comet()
-        trial = None
-
-        self.optim = torch.optim.Adam(
-            lr=self.opt["initial_lr"], params=self.f.parameters()
-        )
-        self.sched = torch.optim.lr_scheduler.OneCycleLR(
-            self.optim,
-            steps_per_epoch=len(self.train_dataloader),
-            epochs=self.opt["total_epochs"],
-            max_lr=self.opt["initial_lr"],
-        )
-        self.cri_mse = torch.nn.MSELoss()
-        self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
-
-        self.step = 0
-        for epoch in tqdm(
-            range(self.opt["total_epochs"]), unit="epoch", desc="Training"
-        ):
-            self.exp.set_epoch(epoch)
-            self.train_epoch()
-
-            if (epoch + 1) % 10 == 0:
-                with torch.no_grad():
-                    val_metric = self.val_epoch()
-            if (epoch + 1) % 250 == 0:
-                with torch.no_grad():
-                    self.log_figure()
-
-                if trial is not None:
-                    trial.report(val_metric, self.step)
-                    if trial.should_prune():
-                        self.exp.add_tag("Pruned")
-                        self.exp.end()
-                        raise optuna.TrialPruned()
-
-        self.exp.end()
-        print(f"Total steps: {self.step}")
-
-        return self.f
 
 
 # def objective(trial: optuna.Trial, dataset, opt: dict, device="cuda"):
