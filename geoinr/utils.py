@@ -173,15 +173,15 @@ def plt_inr(
         fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
     else:
         fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
+    c0, c1 = cropping
 
     fig.suptitle(f"INR Comparison, Altitude = {altitude:0.2f}")
 
     ax1.set_title("Implicit Neural Representation")
-    im1 = ax1.imshow(u[:, :], extent=extent, **ax_args)
+    im1 = ax1.imshow(u[:, :][c0:c1, c0:c1], extent=extent, **ax_args)
     plt.colorbar(im1, ax=ax1, orientation="horizontal")
 
     if gt_grid is not None:
-        c0, c1 = cropping
         ax0.set_title("GT Grid from GA GADDS")
         ax0.imshow(gt_grid[c0:c1, c0:c1], **ax_args)
         plt.colorbar(im1, ax=ax0, orientation="horizontal")
