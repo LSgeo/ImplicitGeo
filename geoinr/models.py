@@ -115,6 +115,7 @@ class Siren(nn.Module):
         hidden_omega_0=30.0,
     ):
         super().__init__()
+        self.return_coords = False
 
         self.net = []
         self.net.append(
@@ -156,11 +157,14 @@ class Siren(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        coords = (
-            coords.clone().detach().requires_grad_(True)
-        )  # allows to take derivative w.r.t. input
-        output = self.net(coords)
-        return output, coords
+        if self.return_coords:
+            coords = (
+                coords.clone().detach().requires_grad_(True)
+            )  # allows to take derivative w.r.t. input
+            output = self.net(coords)
+            return output, coords
+        else:
+            return self.net(coords), None
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""
@@ -361,15 +365,18 @@ class INR(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        output = self.net(coords)
-        coords = (
-            coords.clone().detach().requires_grad_(True)
-        )  # allows to take derivative w.r.t. input
+        if self.return_coords:
+            coords = (
+                coords.clone().detach().requires_grad_(True)
+            )  # allows to take derivative w.r.t. input
+            output = self.net(coords)
 
-        if self.wavelet == "gabor":
-            return output.real, coords
+            if self.wavelet == "gabor":
+                return output.real, coords
 
-        return output, coords
+            return output, coords
+        else:
+            return self.net(coords), None
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""
@@ -470,7 +477,7 @@ class INR2D(nn.Module):
         mode_3d=False,
     ):
         super().__init__()
-
+        self.return_coords = False
         # All results in the paper were with the default complex 'gabor' nonlinearity
         self.nonlin = ComplexGaborLayer2D
 
@@ -514,15 +521,18 @@ class INR2D(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
-        output = self.net(coords)
-        coords = (
-            coords.clone().detach().requires_grad_(True)
-        )  # allows to take derivative w.r.t. input
+        if self.return_coords:
+            output = self.net(coords)
+            coords = (
+                coords.clone().detach().requires_grad_(True)
+            )  # allows to take derivative w.r.t. input
 
-        if self.wavelet == "gabor":
-            return output.real, coords
+            if self.wavelet == "gabor":
+                return output.real, coords
 
-        return output, coords
+            return output, coords
+        else:
+            return self.net(coords), None
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""

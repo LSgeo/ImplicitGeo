@@ -23,7 +23,7 @@ class Exp:
 
     def train_epoch(self):
         self.f.train()
-        for iteration, batch in enumerate(self.train_dataloader):
+        self.f.return_coords = False
             self.exp.set_step(self.step)
             self.exp.log_parameter("lr", self.sched.get_last_lr())
 
@@ -60,6 +60,8 @@ class Exp:
 
     def val_epoch(self):
         self.f.eval()
+        self.f.return_coords = False
+
         avg_metric = []
         for viter, d in enumerate(self.val_dataloader):
             val_xyz = d[0].to(self.device, non_blocking=True)
