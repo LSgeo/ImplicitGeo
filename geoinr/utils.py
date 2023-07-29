@@ -227,10 +227,16 @@ def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
     plt.ylim(dset.extent[2], dset.extent[3])
 
 
-def plt_kwargs(suptitle, ax_args, **kwargs):
-    fig, axs = plt.subplots(1, len(kwargs.keys()), constrained_layout=True, figsize=(len(kwargs.keys()) * 4, 4))
+def plt_kwargs(suptitle, ax_args, shape=None, **kwargs):
+    shape = shape or (1, len(kwargs.keys()))
+    fig, axs = plt.subplots(
+        *shape, constrained_layout=True, figsize=((4 * shape[1]), 4 * shape[0])
+    )
     fig.suptitle(suptitle)
-    for ax, (name, im) in zip(axs, kwargs.items()):
+    for ax, (name, im) in zip(axs.ravel(), kwargs.items()):
         ax.set_title(name)
         cim = ax.imshow(im, **ax_args)
         plt.colorbar(cim, ax=ax, orientation="horizontal")
+
+    if len(kwargs.keys()) > (shape[0] * shape[1]):
+        raise ValueError("Insufficient shape for keyword args")
