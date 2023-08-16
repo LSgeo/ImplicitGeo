@@ -35,7 +35,7 @@ class INRDataset(Dataset):
     def __len__(self):
         return len(self.u)
 
-    def _normalise(self, inp, var: str, a=-1, b=1):
+    def _normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
         """Min-Max Normalise between upper and lower -1 and 1
         This private method records the original ranges
         """
@@ -45,14 +45,14 @@ class INRDataset(Dataset):
 
         return (b - a) * ((inp - np.min(inp)) / (np.max(inp) - np.min(inp))) + a
 
-    def normalise(self, inp, var: str, a=-1, b=1):
+    def normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
         """Normalise inputs to the range of the training data set in _normalise"""
         _min = min(self.var_ranges[var])
         _max = max(self.var_ranges[var])
 
         return (b - a) * ((inp - _min) / (_max - _min)) + a
 
-    def unnormalise(self, inp, var: str):
+    def unnormalise(self, inp, var: str) -> torch.Tensor:
         _min = min(self.var_ranges[var])
         _max = max(self.var_ranges[var])
 
@@ -75,7 +75,7 @@ class INRDataset(Dataset):
 
         return self
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> dict:
         """This should not be used for batched training.
         (i.e. Don't use torch.DataLoader with this dataset - it will be slow!)
         """
@@ -90,10 +90,7 @@ class NCDataset(INRDataset):
         self.variable = variable
         self._load_nc()
 
-    def find_variable_name(self, possible_names: list):
-        matched = next(
-            k for k in self.ncd.variables.keys() if k.lower() in possible_names
-        )
+    def find_variable_name(self, possible_names: list) -> str:
         if not matched:
             raise ValueError(
                 f"Couldn't find a match in {possible_names} for {self.ncd.variables.keys()}"

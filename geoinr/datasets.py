@@ -36,7 +36,7 @@ def merge_z_slices(dir_path: str, idx: int = 0, n: int = 50):
     )
 
 
-def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs):
+def construct_xyz(shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs) -> torch.Tensor:
     """Construct a coordinate space, perhaps to regularise an INR to.
     If you are going to do that:
     Args:
@@ -98,7 +98,7 @@ class INRDataset(Dataset):
             self.xyz = self.xyz[idcs, :]
             self.u = self.u[idcs, :]
 
-    def _normalise(self, inp, var: str, a=-1, b=1):
+    def _normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
         """Min-Max Normalise between upper and lower -1 and 1
         This private method records the original ranges
         """
@@ -108,20 +108,20 @@ class INRDataset(Dataset):
 
         return (b - a) * ((inp - inp.min()) / (inp.max() - inp.min())) + a
 
-    def normalise(self, inp, var: str, a=-1, b=1):
+    def normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
         """Normalise inputs to the range of the training data set in _normalise"""
         _min = self.var_ranges[var]["min"]
         _max = self.var_ranges[var]["max"]
 
         return (b - a) * ((inp - _min) / (_max - _min)) + a
 
-    def unnormalise(self, inp, var: str):
+    def unnormalise(self, inp, var: str) -> torch.Tensor:
         _min = self.var_ranges[var]["min"]
         _max = self.var_ranges[var]["max"]
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> dict:
         if idx > 0:
             raise IndexError("This dataset should always have length 1")
         if self.u is None or self.xyz is None:
@@ -142,7 +142,7 @@ class BatchedINRDataset(INRDataset):
     def __len__(self):
         return len(self.u)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> dict:
         return {"xyz": self.xyz, "u": self.u}
 
 

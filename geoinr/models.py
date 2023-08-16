@@ -50,7 +50,7 @@ class RLoss:
 # LS modified for 3rd (z) dimension (upwards)
 
 
-def get_mgrid(sidelen, dim=3):
+def get_mgrid(sidelen, dim=3) -> torch.Tensor:
     """Generates a flattened grid of ((x,y,z),...) coordinates in a range of -1 to 1.
     sidelen: int
     dim: int

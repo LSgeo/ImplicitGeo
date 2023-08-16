@@ -119,7 +119,7 @@ def plt_3d(u, ori="z", levels=25, step=10, **kwargs):
     plt.show()
 
 
-def query_inr(inr, shape=(200, 200, 10), **kwargs):
+def query_inr(inr, shape=(200, 200, 10), **kwargs) -> np.ndarray:
     """Generate coordinates to query trained INR model
     Suitable for small shapes, otherwise see query_inr_batched
     kwargs define coord query and are passed to construct_xyz
@@ -131,7 +131,7 @@ def query_inr(inr, shape=(200, 200, 10), **kwargs):
     return u.detach().cpu().view(shape).rot90().squeeze().numpy()
 
 
-def generate_inr_batches(inr, shape, chunksize, **kwargs):
+def generate_inr_batches(inr, shape, chunksize, **kwargs) -> torch.Tensor:
     """Generate coordinates to query trained INR model
     kwargs define coord query and are passed to construct_xyz
 
@@ -149,7 +149,9 @@ def generate_inr_batches(inr, shape, chunksize, **kwargs):
         yield u.detach().cpu()
 
 
-def query_inr_batched(inr, shape=(200, 200, 10), chunksize=256_000, **kwargs):
+def query_inr_batched(
+    inr, shape=(200, 200, 10), chunksize=256_000, **kwargs
+) -> np.ndarray:
     full_u = []
     for b_u in generate_inr_batches(inr, shape, chunksize, **kwargs):
         full_u.append(b_u)
@@ -227,7 +229,7 @@ def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
     plt.ylim(dset.extent[2], dset.extent[3])
 
 
-def plt_kwargs(suptitle, ax_args, shape=None, **kwargs):
+def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
     shape = shape or (1, len(kwargs.keys()))
     fig, axs = plt.subplots(
         *shape, constrained_layout=True, figsize=((4 * shape[1]), 4 * shape[0])
@@ -240,3 +242,5 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs):
 
     if len(kwargs.keys()) > (shape[0] * shape[1]):
         raise ValueError("Insufficient shape for keyword args")
+
+    return fig

@@ -22,7 +22,7 @@ class Exp:
         self.device = opt["device"]
         self.scaler = torch.cuda.amp.GradScaler(enabled=self.opt["use_amp"])
 
-    def train_inr(self):
+    def train_inr(self) -> torch.nn.Module:
         self.init_comet()
         trial = None
 
