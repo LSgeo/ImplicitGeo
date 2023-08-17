@@ -7,6 +7,73 @@ from torch import nn
 rng = np.random.default_rng()
 
 
+class PhysicsInform:
+    def __init__(self):
+        self.norm = torch.nn.MSELoss()
+
+    def gradients(
+        self, u: torch.Tensor, coords: torch.Tensor, order: int = 1
+    ) -> torch.Tensor:
+        out = u
+        i = 0
+        while i < order:
+            out = torch.autograd.grad(
+                outputs=(out),
+                inputs=(coords),
+                grad_outputs=torch.ones_like(out),
+                create_graph=True,
+                retain_graph=True,  # maybe a speedup for higher orders?
+                # allow_unused=True,
+            )[0]
+            i += 1
+        return out  # .detach().cpu().squeeze().permute(1, 0)
+
+    def vmap_gradients(self, f: torch.nn.Module, xyz: torch.Tensor) -> torch.Tensor:
+        """gradients using functorch. It's not faster than gradients by much.
+        And it's complicated to use the model f here.
+        https://pytorch.org/functorch/stable/notebooks/jacobians_hessians.html#batch-jacobian-and-batch-hessian
+        """
+        jacobian = torch.func.vmap(
+            torch.func.jacrev(
+                f,
+                argnums=0,
+                # chunk_size=2048,  # Unknown if needed in vmap
+                # has_aux=bool(f.return_coords),  # allow if f is (output, etc)
+            )
+        )
+        return jacobian(xyz).squeeze()
+
+    def vmap_laplacian(self, f: torch.nn.Module, xyz: torch.Tensor) -> torch.Tensor:
+        """vmap calculation of the trace of the Hessian"""
+        compute_batch_hessian = torch.func.vmap(
+            torch.func.hessian(f, argnums=0), in_dims=(0)
+        )
+        hessian = compute_batch_hessian(xyz)
+        laplacian = torch.vmap(torch.trace)
+
+        return laplacian(hessian.squeeze())
+
+    def vmap_cri_lap(self, f: torch.nn.Module, xyz: torch.Tensor) -> torch.Tensor:
+        return self.norm(self.vmap_laplacian(f, xyz), torch.zeros_like(xyz[:, 0]))
+
+    def divergence(self, u: torch.Tensor, xyz: torch.Tensor) -> torch.Tensor:
+        """Implementations from Sitzmann et al.
+        TODO use torch.func vmap implementation for speedup?
+        """
+        div = 0.0
+        for i in range(u.shape[-1]):
+            div += torch.autograd.grad(
+                u[..., i], xyz, torch.ones_like(u[..., i]), create_graph=True
+            )[0][..., i : i + 1]
+        return div
+
+    def laplacian(self, u: torch.Tensor, xyz: torch.Tensor) -> torch.Tensor:
+        return self.divergence(self.gradients(u, xyz), xyz)
+
+    def cri_laplacian(self, u: torch.Tensor, xyz: torch.Tensor) -> torch.Tensor:
+        return self.norm(self.laplacian(u, xyz), torch.zeros_like(u))
+
+
 class RLoss:
     """Regularisation loss for coordinate MLPs.
     From: Ramasinghe, S., MacDonald, L.E., Lucey, S., 2022.

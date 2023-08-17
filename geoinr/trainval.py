@@ -1,5 +1,3 @@
-import functools
-
 import colorcet as cc
 import comet_ml
 import matplotlib.pyplot as plt
@@ -8,7 +6,7 @@ import optuna
 import torch
 from tqdm.auto import tqdm
 
-from geoinr.models import RLoss
+from geoinr.models import RLoss, PhysicsInform
 from geoinr.utils import query_inr, plt_inr
 
 
@@ -38,6 +36,8 @@ class Exp:
 
         self.cri_mse = torch.nn.MSELoss()
         self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
+        self.cri_laplacian = PhysicsInform().cri_laplacian
+        # self.cri_laplacian = PhysicsInform().vmap_cri_lap
 
         self.step = 0
         for epoch in tqdm(
@@ -81,12 +81,15 @@ class Exp:
 
                 # Calculate Loss
                 loss_mse = self.cri_mse(pred_u, train_u)
+                loss_total = loss_mse
                 if self.opt["weight_rloss"] > 0:
                     xbar = torch.rand_like(train_xyz[:, : self.opt["n_samples"], :])
                     loss_r = self.cri_r(self.f, xbar, self.opt["n_samples"])
-                    loss_total = loss_mse + self.opt["weight_rloss"] * loss_r
-                else:
-                    loss_total = loss_mse
+                    loss_total += self.opt["weight_rloss"] * loss_r
+                if self.opt["weight_floss"] > 0:
+                    loss_f = self.cri_laplacian(pred_u, xyz)
+                    # loss_f = self.cri_laplacian(self.f, xyz)
+                    loss_total += self.opt["weight_floss"] * loss_f
 
             self.scaler.scale(loss_total).backward()
             self.scaler.step(self.optim)
@@ -102,6 +105,8 @@ class Exp:
                 self.exp.log_metric("Train Loss MSE", loss_mse.item())
                 if self.opt["weight_rloss"] > 0:
                     self.exp.log_metric("Train Loss Regularisation", loss_r.item())
+                if self.opt["weight_floss"] > 0:
+                    self.exp.log_metric("Train Loss Physics", loss_f.item())
 
             self.step += 1
 
@@ -127,8 +132,10 @@ class Exp:
     def init_comet(self):
         if "sinusoidal" in self.opt["nonlinearity"]:
             comet_tags = ["SIREN"]
-        elif "wire" in self.opt["nonlinearity"]:
+        if "wire" in self.opt["nonlinearity"]:
             comet_tags = ["WIRE"]
+        if self.opt["weight_floss"] > 0:
+            comet_tags.extend(["PINN"])
 
         self.exp = comet_ml.Experiment(disabled=False)
         self.exp.add_tags(comet_tags)
