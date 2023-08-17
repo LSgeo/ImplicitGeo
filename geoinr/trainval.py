@@ -46,11 +46,10 @@ class Exp:
             self.exp.set_epoch(epoch)
             self.train_epoch()
 
-            with torch.no_grad():
-                if (epoch + 1) % 100 == 0:
-                    val_metric = self.val_epoch()
-                if (epoch + 1) % 250 == 0:
-                    self.log_figure()
+            if (epoch + 1) % 100 == 0:
+                val_metric = self.val_epoch()
+            if (epoch + 1) % 250 == 0:
+                self.log_figure()
 
             if trial is not None:
                 trial.report(val_metric, self.step)
@@ -106,6 +105,7 @@ class Exp:
 
             self.step += 1
 
+    @torch.no_grad()
     def val_epoch(self):
         self.f.eval()
         self.f.return_coords = False
@@ -137,6 +137,7 @@ class Exp:
         self.exp.log_parameter("dataset", self.train_dataloader.name)
         self.exp.log_parameters(self.opt)
 
+    @torch.no_grad()
     def log_figure(self):
         u = query_inr(
             self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(39, "up")
