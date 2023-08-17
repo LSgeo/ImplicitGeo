@@ -66,7 +66,7 @@ class Exp:
 
     def train_epoch(self):
         self.f.train()
-        self.f.return_coords = False
+        self.f.return_coords = True
 
         for i, batch in enumerate(self.train_dataloader):
             self.exp.set_step(self.step)
@@ -74,11 +74,11 @@ class Exp:
                 self.exp.log_parameter("lr", self.sched.get_last_lr())
 
             # Send the data to the model and predict
-            train_xyz = batch[0].to(self.device, non_blocking=True)
             train_u = batch[1].to(self.device, non_blocking=True)
+            train_xyz = batch[0].to(self.device, non_blocking=True)
 
             with torch.amp.autocast(self.opt["device"], enabled=self.opt["use_amp"]):
-                pred_u, _ = self.f(train_xyz)
+                pred_u, xyz = self.f(train_xyz)
 
                 # Calculate Loss
                 loss_mse = self.cri_mse(pred_u, train_u)
@@ -115,7 +115,7 @@ class Exp:
             val_xyz = d[0].to(self.device, non_blocking=True)
             val_u = d[1].to(self.device, non_blocking=True)
 
-            pred_u, _ = self.f(val_xyz)
+            pred_u = self.f(val_xyz)
 
             avg_metric.append(self.cri_mse(pred_u, val_u).item())
 

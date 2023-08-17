@@ -161,15 +161,17 @@ class Siren(nn.Module):
             coords = (
                 coords.clone().detach().requires_grad_(True)
             )  # allows to take derivative w.r.t. input
-            output = self.net(coords)
-            return output, coords
+            return self.net(coords), coords
         else:
-            return self.net(coords), None
+            return self.net(coords)
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""
         g = self.net[:-2]
         return g(coords)
+
+    def forward_return_vec(self, coords) -> torch.Tensor:
+        return self.forward(coords).squeeze()
 
     def forward_with_activations(self, coords, retain_grad=False):
         """Returns not only model output, but also intermediate activations.

@@ -126,8 +126,8 @@ def query_inr(inr, shape=(200, 200, 10), **kwargs) -> np.ndarray:
     """
     xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
     xyz = xyz.to(device=device, non_blocking=True)
-
-    u, _ = inr(xyz)
+    inr.return_coords = False
+    u = inr(xyz)
     return u.detach().cpu().view(shape).rot90().squeeze().numpy()
 
 
@@ -144,7 +144,8 @@ def generate_inr_batches(inr, shape, chunksize, **kwargs) -> torch.Tensor:
     # for z in xyz[:, :, 2]:
     for batch in torch.split(xyz, chunksize, dim=1):
         batch = batch.to(device=device, non_blocking=True)
-        u, _ = inr(batch)
+        inr.return_coords = False
+        u = inr(batch)
 
         yield u.detach().cpu()
 
