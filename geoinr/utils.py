@@ -181,12 +181,13 @@ def plt_inr(
 
     ax1.set_title("Implicit Neural Representation")
     im1 = ax1.imshow(u[:, :][c0:c1, c0:c1], extent=extent, **ax_args)
-    plt.colorbar(im1, ax=ax1, orientation="horizontal")
+    ax1.set_xlabel("Easting")
+    ax1.set_ylabel("Northing")
 
     if gt_grid is not None:
-        ax0.set_title("GT Grid from GA GADDS")
-        ax0.imshow(gt_grid[c0:c1, c0:c1], **ax_args)
-        plt.colorbar(im1, ax=ax0, orientation="horizontal")
+        ax0.set_xlabel("Easting")
+        ax0.set_ylabel("Northing")
+
 
         ax2.set_title("Residuals GT - INR")
         imdiff = ax2.imshow(

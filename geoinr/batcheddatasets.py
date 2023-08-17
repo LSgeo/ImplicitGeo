@@ -91,6 +91,7 @@ class NCDataset(INRDataset):
         self._load_nc()
 
     def find_variable_name(self, possible_names: list) -> str:
+        matched = next(k for k in self.ncd.variables.keys() if k in possible_names)
         if not matched:
             raise ValueError(
                 f"Couldn't find a match in {possible_names} for {self.ncd.variables.keys()}"
@@ -133,8 +134,8 @@ class NCDataset(INRDataset):
 
     def _load_nc(self):
         self.ncd = netCDF4.Dataset(self.file_path, "r")
-        self.easting = self.find_variable_name(["easting", "x"])
-        self.northing = self.find_variable_name(["northing", "y"])
+        self.easting = self.find_variable_name(["easting", "x", "longitude"])
+        self.northing = self.find_variable_name(["northing", "y", "latitude"])
         self.upward = self.find_variable_name(["upward", "altitude"])
         self.variable = self.find_variable_name([self.variable, "mag_microLevelled"])
 
