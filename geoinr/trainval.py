@@ -27,12 +27,19 @@ class Exp:
         self.optim = torch.optim.Adam(
             lr=self.opt["initial_lr"], params=self.f.parameters()
         )
-        self.sched = torch.optim.lr_scheduler.OneCycleLR(
-            self.optim,
-            steps_per_epoch=len(self.train_dataloader),
-            epochs=self.opt["total_epochs"],
-            max_lr=self.opt["initial_lr"],
-        )
+
+        if "oclr" in self.opt["scheduler"]:
+            self.sched = torch.optim.lr_scheduler.OneCycleLR(
+                self.optim,
+                steps_per_epoch=len(self.train_dataloader),
+                epochs=self.opt["total_epochs"],
+                max_lr=self.opt["initial_lr"],
+            )
+        elif "mslr" in self.opt["scheduler"]:
+            self.sched = torch.optim.lr_scheduler.MultiStepLR(
+                self.optim,
+                [200, 400, 600, 800],
+            )
 
         self.cri_mse = torch.nn.MSELoss()
         self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
@@ -44,6 +51,7 @@ class Exp:
             range(self.opt["total_epochs"]), unit="epoch", desc="Training"
         ):
             self.exp.set_epoch(epoch)
+            self.val_epoch()
             self.train_epoch()
 
             if (epoch + 1) % 100 == 0:
