@@ -38,7 +38,8 @@ class Exp:
         elif "mslr" in self.opt["scheduler"]:
             self.sched = torch.optim.lr_scheduler.MultiStepLR(
                 self.optim,
-                [200, 400, 600, 800],
+                [250, 700],
+                0.5,
             )
 
         self.cri_mse = torch.nn.MSELoss()
@@ -54,7 +55,7 @@ class Exp:
             self.val_epoch()
             self.train_epoch()
 
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 20 == 0:
                 val_metric = self.val_epoch()
             if (epoch + 1) % 250 == 0:
                 self.log_figure()
@@ -134,6 +135,7 @@ class Exp:
 
         avg_metric = np.array(avg_metric).mean()
         self.exp.log_metric("Val Loss MSE", avg_metric)
+        self.exp.log_metric("Current LR", self.sched.get_last_lr())
 
         return avg_metric
 
