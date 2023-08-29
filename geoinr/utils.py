@@ -246,3 +246,25 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
         raise ValueError("Insufficient shape for keyword args")
 
     return fig
+
+
+def e_size(s) -> float:
+    """Calculate inch for pyplot from elsevier figure widths
+    https://beta.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing
+    """
+    if isinstance(s, (int, float)):
+        mm = s
+    elif isinstance(s, str):
+        if s.lower() in ["minimal"]:
+            mm = 30
+        elif s == "1" or s.lower() in ["single"]:
+            mm = 90
+        elif s == "1.5":
+            mm = 140
+        elif s == "2" or s.lower() in ["double", "full"]:
+            mm = 190
+        else:
+            raise ValueError("Unsupported target size")
+    else:
+        raise ValueError(f"{s=}, {mm=}")
+    return mm / 25.4
