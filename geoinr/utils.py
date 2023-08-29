@@ -173,32 +173,38 @@ def plt_inr(
 ):
     """Plot a default INR model output comparison"""
     if gt_grid is not None:
-        fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
+        fig, [ax0, ax1] = plt.subplots(1, 2, constrained_layout=True, **kwargs)
     else:
         fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
     c0, c1 = cropping
 
-    fig.suptitle(f"INR Comparison, Altitude = {altitude:0.2f}")
+    # fig.suptitle(f"INR Comparison")  # , Altitude = {altitude:0.2f}")
 
     ax1.set_title("Implicit Neural Representation")
     im1 = ax1.imshow(u[:, :][c0:c1, c0:c1], extent=extent, **ax_args)
+    # plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
     ax1.set_xlabel("Easting")
     ax1.set_ylabel("Northing")
 
     if gt_grid is not None:
+        ax0.set_title("GT Grid")
+        ax0.imshow(gt_grid[c0:c1, c0:c1], extent=extent, **ax_args)
         ax0.set_xlabel("Easting")
         ax0.set_ylabel("Northing")
 
+        plt.colorbar(im1, ax=[ax0, ax1], orientation="horizontal", label="nT")
+    else:
+        plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
 
-        ax2.set_title("Residuals GT - INR")
-        imdiff = ax2.imshow(
-            gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
-            vmin=_vmin,
-            vmax=_vmax,
-            cmap=cc.cm.CET_D7,
-            extent=extent,
-        )
-        plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
+    # ax2.set_title("Residuals GT - INR")
+    # imdiff = ax2.imshow(
+    #     gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
+    #     vmin=_vmin,
+    #     vmax=_vmax,
+    #     cmap=cc.cm.CET_D7,
+    #     extent=extent,
+    # )
+    # plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
     # else:
     #     ax0.axis("off")
     #     ax2.axis("off")
@@ -210,16 +216,21 @@ def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
     if unnormalise_fn is not None:
         x = unnormalise_fn(dset.xyz[:, 0], "x")
         y = unnormalise_fn(dset.xyz[:, 1], "y")
+        z = unnormalise_fn(dset.xyz[:, 2], "z")
     else:
         x = dset.xyz[:, 0]
         y = dset.xyz[:, 1]
+        z = dset.xyz[:, 2]
 
-    if clr == "z":
-        clr = dset.xyz[:, 2].numpy().data
+    # if clr == "z":
+    #     clr = dset.xyz[:, 2].numpy().data
 
-    plt.figure(figsize=(10, 10), dpi=100)
-    plt.scatter(x, y, s=1, facecolors=clr, edgecolors=clr, cmap=cc.cm.CET_L1)
-    plt.colorbar(orientation="horizontal")
+    fig = plt.figure(figsize=(10, 10), dpi=100)
+    ax = fig.add_subplot(projection="3d")
+    ax.view_init(elev=50, azim=45)
+
+    ax.scatter(x, y, z, s=0.2)
+    # plt.colorbar(orientation="horizontal")
     # plt.scatter(
     #     dataset.unnormalise(val_dataset.dataset.xyz[:, 0], "x"),
     #     dataset.unnormalise(val_dataset.dataset.xyz[:, 1], "y"),
@@ -232,18 +243,55 @@ def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
 
 
 def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
+    label = kwargs.pop("label", None)
+    figsize = kwargs.pop("figsize", (7.48, 7.48 * 2 / 3))
     shape = shape or (1, len(kwargs.keys()))
-    fig, axs = plt.subplots(
-        *shape, constrained_layout=True, figsize=((4 * shape[1]), 4 * shape[0])
-    )
-    fig.suptitle(suptitle)
-    for ax, (name, im) in zip(axs.ravel(), kwargs.items()):
-        ax.set_title(name)
-        cim = ax.imshow(im, **ax_args)
-        plt.colorbar(cim, ax=ax, orientation="horizontal")
 
     if len(kwargs.keys()) > (shape[0] * shape[1]):
         raise ValueError("Insufficient shape for keyword args")
+
+    fig, axs = plt.subplots(
+        *shape,
+        constrained_layout=True,
+        figsize=figsize,
+        sharex=True,
+        sharey=True,
+    )
+    axs = np.array(axs)
+
+    fig.suptitle(suptitle)
+
+    rax = []
+    cax = []
+    for i, (ax, (name, im)) in enumerate(zip(axs.ravel(), kwargs.items())):
+        ax.set_title(name)
+        ax.ticklabel_format(useOffset=False, style="plain")
+        # ax.tick_params(axis="x", labelrotation=-90)
+        # ax.tick_params(axis="y", labelrotation=-90)
+
+        if "Residual" in name:
+            _vmin = ax_args.pop("vmin")
+            _vmax = ax_args.pop("vmax")
+            rim = ax.imshow(
+                im, **{**ax_args, "cmap": cc.cm.CET_D1, "vmin": -5, "vmax": 5}
+            )
+            rax.append(ax)
+        else:
+            cim = ax.imshow(im, **ax_args)
+            cax.append(ax)
+
+        if "Residual" in name:
+            ax_args["vmin"] = _vmin
+            ax_args["vmax"] = _vmax
+
+        if i in [0, shape[1]]:
+            ax.set_ylabel("Northing")
+        if shape[1] == 2 or i in range(shape[1], shape[0] * shape[1]):
+            ax.set_xlabel("Easting")
+
+    plt.colorbar(cim, ax=cax, orientation="horizontal", label=label)
+    if "Residual" in name:
+        plt.colorbar(rim, ax=rax, orientation="horizontal", label=label, aspect=10)
 
     return fig
 
