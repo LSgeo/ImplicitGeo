@@ -233,33 +233,53 @@ def psnr(grid1, grid2):
     return 10 * np.log10((grid1.max() - grid1.min()) ** 2 / mse)
 
 
+def plt_sample_locs(dset, label=None, unnormalise_fn=None, gtt=None, u=None):
+    # from matplotlib.colors import TwoSlopeNorm
+
     if unnormalise_fn is not None:
-        x = unnormalise_fn(dset.xyz[:, 0], "x")
-        y = unnormalise_fn(dset.xyz[:, 1], "y")
-        z = unnormalise_fn(dset.xyz[:, 2], "z")
+        x = unnormalise_fn(dset.xyz[:, 0], "e").numpy()
+        y = unnormalise_fn(dset.xyz[:, 1], "n").numpy()
+        z = unnormalise_fn(dset.xyz[:, 2], "up").numpy()
     else:
         x = dset.xyz[:, 0]
         y = dset.xyz[:, 1]
         z = dset.xyz[:, 2]
 
-    # if clr == "z":
-    #     clr = dset.xyz[:, 2].numpy().data
+    if "alt" in label.lower():
+        clr = z
+        cmap = cc.cm.CET_D1
+        vmin = u - 20
+        vmax = u + 20
 
-    fig = plt.figure(figsize=(10, 10), dpi=100)
-    ax = fig.add_subplot(projection="3d")
-    ax.view_init(elev=50, azim=45)
+    elif "mag" in label.lower():
+        if u is None:
+            raise ValueError("Must also specify u argument")
+        clr = unnormalise_fn(u, "u").numpy()
+        cmap = cc.cm.CET_D1
+        vmin = None
+        vmax = None
 
-    ax.scatter(x, y, z, s=0.2)
-    # plt.colorbar(orientation="horizontal")
-    # plt.scatter(
-    #     dataset.unnormalise(val_dataset.dataset.xyz[:, 0], "x"),
-    #     dataset.unnormalise(val_dataset.dataset.xyz[:, 1], "y"),
-    #     s=1,
-    #     facecolors="r",
-    #     edgecolors="r",
-    # )
-    plt.xlim(dset.extent[0], dset.extent[1])
-    plt.ylim(dset.extent[2], dset.extent[3])
+    fig = plt.figure(
+        figsize=(e_size("1"), e_size("1") / 0.9),
+        layout="constrained",
+    )
+    ax = fig.add_subplot()  # projection="3d")
+    # ax.view_init(elev=90, azim=0)
+    # ax.set_zlabel('Altitude')
+
+    clrs_alt = ax.scatter(
+        x, y, c=clr, s=0.02, alpha=0.8, vmin=vmin, cmap=cmap, vmax=vmax
+    )
+    # norm=TwoSlopeNorm(40),
+    ax.set_xlabel("Easting")
+    ax.set_ylabel("Northing")
+    plt.axis("equal")
+    plt.colorbar(clrs_alt, label=label, orientation="horizontal")
+
+    if gtt is not None:
+        plt.imshow(gtt, cmap=cc.cm.CET_L1)
+
+    return fig
 
 
 def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
