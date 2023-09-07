@@ -444,10 +444,10 @@ class INR(nn.Module):
 
             if self.wavelet == "gabor":
                 return output.real, coords
-
-            return output, coords
+            else:
+                return output, coords
         else:
-            return self.net(coords), None
+            return self.net(coords).real
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""
@@ -592,18 +592,19 @@ class INR2D(nn.Module):
         self.net = nn.Sequential(*self.net)
 
     def forward(self, coords):
+
         if self.return_coords:
-            output = self.net(coords)
             coords = (
                 coords.clone().detach().requires_grad_(True)
             )  # allows to take derivative w.r.t. input
+            output = self.net(coords)
 
             if self.wavelet == "gabor":
                 return output.real, coords
-
-            return output, coords
+            else:
+                return output, coords
         else:
-            return self.net(coords), None
+            return self.net(coords).real
 
     def forward_until_g(self, coords):
         """Forward pass until penultimate layer for RLoss"""
