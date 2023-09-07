@@ -51,14 +51,15 @@ class Exp:
         for epoch in tqdm(
             range(self.opt["total_epochs"]), unit="epoch", desc="Training"
         ):
+            self.epoch = epoch
             self.exp.set_epoch(epoch)
-            self.val_epoch()
             self.train_epoch()
+            # self.val_epoch()
 
-            if (epoch + 1) % 20 == 0:
+            if (epoch + 1) % 25 == 0:
                 val_metric = self.val_epoch()
             if (epoch + 1) % 250 == 0:
-                self.log_figure()
+                self.log_figure(alt=40)
 
             if trial is not None:
                 trial.report(val_metric, self.step)
@@ -72,13 +73,13 @@ class Exp:
 
         return self.f
 
-    def train_epoch(self):
+    def train_epoch(self, floss_epoch=0):
         self.f.train()
-        self.f.return_coords = True
+        self.f.return_coords = self.opt["weight_floss"] > 0
 
         for i, batch in enumerate(self.train_dataloader):
             self.exp.set_step(self.step)
-            if i % 200 == 0:
+            if self.epoch % 50 == 0:
                 self.exp.log_parameter("lr", self.sched.get_last_lr())
 
             # Send the data to the model and predict
@@ -86,7 +87,8 @@ class Exp:
             train_xyz = batch[0].to(self.device, non_blocking=True)
 
             with torch.amp.autocast(self.opt["device"], enabled=self.opt["use_amp"]):
-                pred_u, xyz = self.f(train_xyz)
+                pred_u = self.f(train_xyz)
+                # pred_u, xyz = self.f(train_xyz)
 
                 # Calculate Loss
                 loss_mse = self.cri_mse(pred_u, train_u)
@@ -95,7 +97,7 @@ class Exp:
                     xbar = torch.rand_like(train_xyz[:, : self.opt["n_samples"], :])
                     loss_r = self.cri_r(self.f, xbar, self.opt["n_samples"])
                     loss_total += self.opt["weight_rloss"] * loss_r
-                if self.opt["weight_floss"] > 0:
+                if self.epoch > floss_epoch and self.opt["weight_floss"] > 0:
                     loss_f = self.cri_laplacian(pred_u, xyz)
                     # loss_f = self.cri_laplacian(self.f, xyz)
                     loss_total += self.opt["weight_floss"] * loss_f
@@ -109,12 +111,12 @@ class Exp:
             self.sched.step()
 
             # Log metrics
-            if i % 250 == 0:
+            if self.epoch % 10 == 0:
                 self.exp.log_metric("Train Loss Total", loss_total.item())
                 self.exp.log_metric("Train Loss MSE", loss_mse.item())
                 if self.opt["weight_rloss"] > 0:
                     self.exp.log_metric("Train Loss Regularisation", loss_r.item())
-                if self.opt["weight_floss"] > 0:
+                if self.epoch > floss_epoch and self.opt["weight_floss"] > 0:
                     self.exp.log_metric("Train Loss Physics", loss_f.item())
 
             self.step += 1
@@ -122,7 +124,7 @@ class Exp:
     @torch.no_grad()
     def val_epoch(self):
         self.f.eval()
-        self.f.return_coords = False
+        self.f.return_coords = self.opt["weight_floss"]
 
         avg_metric = []
         for vi, d in enumerate(self.val_dataloader):
@@ -152,18 +154,19 @@ class Exp:
         self.exp.log_code("geoinr/models.py")
         self.exp.log_code("geoinr/datasets.py")
         self.exp.log_parameter("dataset", self.train_dataloader.name)
+        self.exp.log_parameter("dataset length", len(self.train_dataloader.dataset["u"]))
         self.exp.log_parameters(self.opt)
 
     @torch.no_grad()
-    def log_figure(self):
+    def log_figure(self, alt=40):
         u = query_inr(
-            self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(39, "up")
+            self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(alt, "up")
         )
 
         fig = plt_inr(
             u.squeeze(),
-            altitude=39,
             extent=self.train_dataloader.extent,
+            suffix=f" {alt} m",
             ax_args=dict(cmap=cc.cm.CET_L1),
             figsize=(5, 5),
             dpi=100,
