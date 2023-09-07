@@ -356,3 +356,41 @@ def e_size(s) -> float:
     else:
         raise ValueError(f"{s=}, {mm=}")
     return mm / 25.4
+
+
+def crop_gtt(gtt, clip_bounds):
+    import rasterio
+    from shapely.geometry import Polygon
+
+    w, e, s, n = clip_bounds
+    clip = Polygon(((w, n), (e, n), (e, s), (w, s)))
+    return rasterio.mask.mask(gtt, [clip], crop=True)
+
+
+def load_nc_grid(grid_path, crop=False, nan_val=-99999):
+    """Load grid data from a netCDF, such as those provided by GA on the
+    dapds00 thredds server.
+    """
+
+    from pathlib import Path
+    import rasterio
+    import rioxarray
+    import xarray
+
+    grid_path = Path(grid_path)
+    xds = xarray.open_dataset(grid_path)
+    xds.Band1.rio.to_raster(f"{grid_path.stem}.tif")
+
+    gtt = rasterio.open(f"{grid_path.stem}.tif")
+    b = [b for b in gtt.bounds]
+    gtt_extent = [b[0], b[2], b[1], b[3]]
+
+    if crop:
+        gtt = crop_gtt(gtt, crop)[0][0]
+        gtt_extent = crop
+
+    # gtt = gtt.read(1)
+    gtt[gtt == nan_val] = float("nan")
+    # plt.imshow(gtt, extent=gtt_extent, cmap=cc.cm.CET_L1)
+
+    return gtt, gtt_extent
