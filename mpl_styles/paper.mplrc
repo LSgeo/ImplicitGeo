@@ -1,8 +1,12 @@
 savefig.format: pdf
+figure.dpi: 100
+figure.figsize: 7.48, 4.45
 mathtext.fontset:cm
 font.family: STIXGeneral
-figure.dpi: 600
-figure.figsize: 7.2, 4.45
+# text.usetex: False
+figure.titlesize: 10
+font.size: 8
+legend.title_fontsize: 8
 # axes.titlelocation: left
 # axes.formatter.use_mathtext: True
 # axes.autolimit_mode: round_numbers
@@ -29,15 +33,10 @@ figure.figsize: 7.2, 4.45
 # # legend.borderpad: 0.2
 # # legend.columnspacing: 1.5
 # # legend.labelspacing:  0.4
-# legend.title_fontsize: 8
 # # text.color: 323034
 # # xtick.color: 323034
 # # ytick.color: 323034
-# text.usetex: False
-# font.size: 8
-# figure.titlesize: 10
 # axes.titlesize: 16
 # axes.labelsize: 12
 # xtick.labelsize: 7
 # ytick.labelsize: 7
-# # mathtext.fontset: stix
