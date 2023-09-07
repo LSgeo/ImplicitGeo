@@ -5,7 +5,7 @@ import numpy as np
 import tifffile
 import torch
 
-from geoinr.datasets import construct_xyz
+import geoinr.datasets
 
 rng = np.random.default_rng()
 
@@ -124,7 +124,7 @@ def query_inr(inr, shape=(200, 200, 10), **kwargs) -> np.ndarray:
     Suitable for small shapes, otherwise see query_inr_batched
     kwargs define coord query and are passed to construct_xyz
     """
-    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
+    xyz = geoinr.datasets.construct_xyz(shape, **kwargs).unsqueeze(0)
     xyz = xyz.to(device=device, non_blocking=True)
     inr.return_coords = False
     u = inr(xyz)
@@ -140,7 +140,7 @@ def generate_inr_batches(inr, shape, chunksize, **kwargs) -> torch.Tensor:
     # full_uxyz[int(i*bu.shape[1]):int((i+1)*bu.shape[1])] = bu.view([0,:,0]
 
     """
-    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
+    xyz = geoinr.datasets.construct_xyz(shape, **kwargs).unsqueeze(0)
     # for z in xyz[:, :, 2]:
     for batch in torch.split(xyz, chunksize, dim=1):
         batch = batch.to(device=device, non_blocking=True)
@@ -162,57 +162,77 @@ def query_inr_batched(
 
 def plt_inr(
     u,
-    altitude,
     extent,
     ax_args,
+    suffix=None,
     _vmin=None,
     _vmax=None,
     gt_grid=None,
+    residual=False,
     cropping=(0, -1),
     **kwargs,
 ):
     """Plot a default INR model output comparison"""
     if gt_grid is not None:
-        fig, [ax0, ax1] = plt.subplots(1, 2, constrained_layout=True, **kwargs)
+        if residual:
+            fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
+        else:
+            fig, [ax0, ax1] = plt.subplots(1, 2, constrained_layout=True, **kwargs)
+
     else:
         fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
     c0, c1 = cropping
 
     # fig.suptitle(f"INR Comparison")  # , Altitude = {altitude:0.2f}")
 
-    ax1.set_title("Implicit Neural Representation")
+    ax1.set_title(f"Implicit Neural Representation{suffix}")
     im1 = ax1.imshow(u[:, :][c0:c1, c0:c1], extent=extent, **ax_args)
     # plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
     ax1.set_xlabel("Easting")
-    ax1.set_ylabel("Northing")
+    # ax1.set_ylabel("Northing")
+    ax1.ticklabel_format(useOffset=False)
 
     if gt_grid is not None:
-        ax0.set_title("GT Grid")
+        ax0.set_title("Reference Grid")
         ax0.imshow(gt_grid[c0:c1, c0:c1], extent=extent, **ax_args)
         ax0.set_xlabel("Easting")
         ax0.set_ylabel("Northing")
-
+        ax0.ticklabel_format(useOffset=False)
+        # Share INR grid cmap
         plt.colorbar(im1, ax=[ax0, ax1], orientation="horizontal", label="nT")
     else:
         plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
 
-    # ax2.set_title("Residuals GT - INR")
-    # imdiff = ax2.imshow(
-    #     gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
-    #     vmin=_vmin,
-    #     vmax=_vmax,
-    #     cmap=cc.cm.CET_D7,
-    #     extent=extent,
-    # )
-    # plt.colorbar(imdiff, ax=ax2, orientation="horizontal")
-    # else:
-    #     ax0.axis("off")
-    #     ax2.axis("off")
+    if residual:
+        std = u.std()
+        _vmax = 2 * std
+        _vmin = -2 * std
+        ax2.set_title(
+            f"Residual (PSNR: {psnr(gt_grid[c0:c1, c0:c1,], u[:, :][c0:c1, c0:c1]):0.2f})"
+        )
+        imdiff = ax2.imshow(
+            gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
+            vmin=_vmin,
+            vmax=_vmax,
+            cmap=cc.cm.CET_D7,
+            extent=extent,
+        )
+        imdiff.cmap.set_under("k")
+        plt.colorbar(
+            imdiff, ax=ax2, orientation="horizontal", label=r"$\Delta$nT", aspect=9
+        )
+        ax2.set_xlabel("Easting")
+        ax2.ticklabel_format(useOffset=False)
+        # ax2.set_ylabel("Northing")
 
     return fig
 
 
-def plt_sample_locs(dset, clr=None, unnormalise_fn=None):
+def psnr(grid1, grid2):
+    mse = np.mean((grid1.astype(np.float64) - grid2.astype(np.float64)) ** 2)
+    return 10 * np.log10((grid1.max() - grid1.min()) ** 2 / mse)
+
+
     if unnormalise_fn is not None:
         x = unnormalise_fn(dset.xyz[:, 0], "x")
         y = unnormalise_fn(dset.xyz[:, 1], "y")
