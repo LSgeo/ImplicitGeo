@@ -91,10 +91,11 @@ class NCDataset(INRDataset):
         self._load_nc()
 
     def find_variable_name(self, possible_names: list) -> str:
-        matched = next(k for k in self.ncd.variables.keys() if k in possible_names)
-        if not matched:
+        try:
+            matched = next(k for k in self.ncd.variables.keys() if k in possible_names)
+        except StopIteration as v:
             raise ValueError(
-                f"Couldn't find a match in {possible_names} for {self.ncd.variables.keys()}"
+                f"Couldn't find a match in {possible_names} for {self.ncd.variables.keys()}: {v}"
             )
 
         # While we are here, check for value variable name:
