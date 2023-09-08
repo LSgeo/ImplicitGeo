@@ -396,9 +396,9 @@ def load_nc_grid(grid_path, crop=False, nan_val=-99999):
     if crop:
         gtt = crop_gtt(gtt, crop)[0][0]
         gtt_extent = crop
+    else:
+        gtt = gtt.read(1)
 
-    # gtt = gtt.read(1)
     gtt[gtt == nan_val] = float("nan")
-    # plt.imshow(gtt, extent=gtt_extent, cmap=cc.cm.CET_L1)
 
     return gtt, gtt_extent
