@@ -233,7 +233,9 @@ def psnr(grid1, grid2):
     return 10 * np.log10((grid1.max() - grid1.min()) ** 2 / mse)
 
 
-def plt_sample_locs(dset, label=None, unnormalise_fn=None, gtt=None, u=None):
+def plt_sample_locs(
+    dset, label=None, unnormalise_fn=None, gtt=None, u=None, ax3d=False
+):
     # from matplotlib.colors import TwoSlopeNorm
 
     if unnormalise_fn is not None:
@@ -255,7 +257,7 @@ def plt_sample_locs(dset, label=None, unnormalise_fn=None, gtt=None, u=None):
         if u is None:
             raise ValueError("Must also specify u argument")
         clr = unnormalise_fn(u, "u").numpy()
-        cmap = cc.cm.CET_D1
+        cmap = cc.cm.CET_L1
         vmin = None
         vmax = None
 
@@ -263,17 +265,23 @@ def plt_sample_locs(dset, label=None, unnormalise_fn=None, gtt=None, u=None):
         figsize=(e_size("1"), e_size("1") / 0.9),
         layout="constrained",
     )
-    ax = fig.add_subplot()  # projection="3d")
-    # ax.view_init(elev=90, azim=0)
-    # ax.set_zlabel('Altitude')
+    if not ax3d:
+        ax = fig.add_subplot()
+        clrs_alt = ax.scatter(
+            x, y, c=clr, s=0.005, alpha=0.6, cmap=cmap, vmin=vmin, vmax=vmax
+        )
+    else:
+        ax = fig.add_subplot(projection="3d")
+        ax.view_init(elev=30, azim=250)
+        ax.set_zlabel("Altitude")
+        clrs_alt = ax.scatter(
+            x, y, z, c=clr, s=0.02, alpha=0.8, cmap=cmap, vmin=vmin, vmax=vmax
+        )
 
-    clrs_alt = ax.scatter(
-        x, y, c=clr, s=0.02, alpha=0.8, vmin=vmin, cmap=cmap, vmax=vmax
-    )
     # norm=TwoSlopeNorm(40),
     ax.set_xlabel("Easting")
     ax.set_ylabel("Northing")
-    plt.axis("equal")
+    # plt.axis("equal")
     plt.colorbar(clrs_alt, label=label, orientation="horizontal")
 
     if gtt is not None:
