@@ -262,27 +262,27 @@ def plt_sample_locs(
         vmax = None
 
     fig = plt.figure(
-        figsize=(e_size("1"), e_size("1") / 0.9),
+        figsize=(e_size("1.5"), e_size("1.5")),
         layout="constrained",
     )
     if not ax3d:
         ax = fig.add_subplot()
         clrs_alt = ax.scatter(
-            x, y, c=clr, s=0.005, alpha=0.6, cmap=cmap, vmin=vmin, vmax=vmax
+            x, y, c=clr, s=1, alpha=0.6, cmap=cmap, vmin=vmin, vmax=vmax, rasterized=True
         )
     else:
         ax = fig.add_subplot(projection="3d")
         ax.view_init(elev=30, azim=250)
         ax.set_zlabel("Altitude")
         clrs_alt = ax.scatter(
-            x, y, z, c=clr, s=0.02, alpha=0.8, cmap=cmap, vmin=vmin, vmax=vmax
+            x, y, z, c=clr, s=0.05, alpha=0.8, cmap=cmap, vmin=vmin, vmax=vmax
         )
 
     # norm=TwoSlopeNorm(40),
-    ax.set_xlabel("Easting")
-    ax.set_ylabel("Northing")
+    ax.set_xlabel(f"Easting {chr(176)}")
+    ax.set_ylabel(f"Northing {chr(176)}")
     # plt.axis("equal")
-    plt.colorbar(clrs_alt, label=label, orientation="horizontal")
+    plt.colorbar(clrs_alt, label=label)  #, orientation="horizontal")
 
     if gtt is not None:
         plt.imshow(gtt, cmap=cc.cm.CET_L1)
