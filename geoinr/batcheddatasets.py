@@ -13,6 +13,60 @@ if torch.cuda.is_available():
     device = "cuda"
 
 
+def construct_xyz(
+    shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs
+) -> torch.Tensor:
+    """Construct a coordinate space, perhaps to regularise an INR to.
+    If you are going to do that:
+    Args:
+        shape: 3D h,w,c shape, which determins the resolution of the mesh.
+        {x|y|z}_r should be the same as the normalised training space, i.e. -1 to 1.
+        {x|y|z}_mod allows you to scale the coordinate axis.
+
+        We treat z different - we specify a "middle" slice value, and range around it
+    """
+
+    if any(kw in kwargs for kw in ["zvec", "zmod"]):
+        raise NotImplementedError("Don't forget the underscore!")
+
+    x_vec = kwargs.get("x_vec", torch.linspace(-x_r, x_r, steps=shape[0]) * xy_mod)
+    y_vec = kwargs.get("y_vec", torch.linspace(-y_r, y_r, steps=shape[1]) * xy_mod)
+    z_vec = kwargs.get(
+        "z_vec", torch.linspace(z_mod - z_r, z_mod + z_r, steps=shape[2])
+    )
+
+    xyz = torch.cartesian_prod(*tuple((x_vec, y_vec, z_vec)))
+
+    if shape[-1] == 1:  # return mid value if only 1 slice
+        xyz[:, -1] = z_mod
+    if shape[-1] == 2:  # return mid value if only 1 slice
+        # xyz[::2, -1] = z_mod # This works but is stupid.
+        raise ValueError("Z shape should be either 1, or more than 2.")
+
+    return xyz
+
+
+def merge_z_slices(dir_path: str, n: int = None):  # , n: int = 50):
+    """Merge multiple Noddy forward models into a single 3D array
+    For example, create a 200x200x200 volume of synthetic measurements.
+    Args:
+        dir_path: Path to directory to merge all .mag (and .grv)
+        n: number of files to include, i.e. number of slices
+    """
+
+    dir_path = Path(dir_path)
+    mag_files = natsort.natsorted(list(dir_path.glob("*.mag")))[:n]  # sel idx dir
+    # grv_files = sorted(list(dir_path.glob("*"))[idx].glob("*.grv"))[:n]
+
+    # get x y extent from header
+    # _, xlen, ylen, _ = mag_files[0].read_text().splitlines()[3].split()
+    # zlen = len(mag_files)
+
+    return np.stack(
+        [np.genfromtxt(f, dtype=np.float32, skip_header=8) for f in mag_files], axis=-1
+    )
+
+
 class INRDataset(Dataset):
     """Base class for Implicit Neural Representation Dataset"""
 
@@ -23,12 +77,7 @@ class INRDataset(Dataset):
         self.upward = "up"
         self.xyz = None
         self.u = None
-        self.var_ranges = {
-            "e": None,
-            "n": None,
-            "up": None,
-            "u": None,
-        }
+        self.var_ranges = {"e": None, "n": None, "up": None, "u": None}
         self.invalid_points = 0
         self.extent = (-1, 1, -1, 1, -1, 1)
 

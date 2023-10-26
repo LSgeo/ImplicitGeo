@@ -2,10 +2,10 @@ import colorcet as cc
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
-import tifffile
+# import tifffile
 import torch
 
-import geoinr.datasets
+from geoinr.batcheddatasets import construct_xyz
 
 rng = np.random.default_rng()
 
@@ -124,7 +124,7 @@ def query_inr(inr, shape=(200, 200, 10), **kwargs) -> np.ndarray:
     Suitable for small shapes, otherwise see query_inr_batched
     kwargs define coord query and are passed to construct_xyz
     """
-    xyz = geoinr.datasets.construct_xyz(shape, **kwargs).unsqueeze(0)
+    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
     xyz = xyz.to(device=device, non_blocking=True)
     inr.return_coords = False
     u = inr(xyz)
@@ -140,7 +140,7 @@ def generate_inr_batches(inr, shape, chunksize, **kwargs) -> torch.Tensor:
     # full_uxyz[int(i*bu.shape[1]):int((i+1)*bu.shape[1])] = bu.view([0,:,0]
 
     """
-    xyz = geoinr.datasets.construct_xyz(shape, **kwargs).unsqueeze(0)
+    xyz = construct_xyz(shape, **kwargs).unsqueeze(0)
     # for z in xyz[:, :, 2]:
     for batch in torch.split(xyz, chunksize, dim=1):
         batch = batch.to(device=device, non_blocking=True)
