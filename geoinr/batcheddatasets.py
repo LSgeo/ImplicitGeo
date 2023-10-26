@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+import natsort
+
 
 rng = np.random.default_rng()
 
@@ -261,6 +263,45 @@ class CSVDataset(INRDataset):
             )
 
         self.u = self.u.contiguous().view(-1, 1).to(torch.float32)
+
+
+class NoddyDataset(INRDataset):
+    """A dataset for INR on Noddy synthetic data
+    Optionally limit the number of altitude slices to load
+    """
+
+    def __init__(self, file_path: Path, variable: str, file_limit: int = None):
+        super().__init__()
+
+        self.file_path = Path(file_path)
+        self.file_limit = file_limit
+        self.variable = variable
+        self._load_noddy(file_limit)
+
+    def get_mgrid(self, cs=20):
+        """Make coord grid for noddy 20 m data"""
+        tensors = [np.arange(s) * cs for s in self.u.shape]
+        tensors[2] += 100  # Noddy data starts at z=100
+        x, y, z = tensors
+        xyz = tuple(
+            (
+                torch.from_numpy(self._normalise(x, "e")),
+                torch.from_numpy(self._normalise(y, "n")),
+                torch.from_numpy(self._normalise(z, "up")),
+            )
+        )
+        xyz = (
+            torch.stack(torch.meshgrid(*xyz, indexing="ij"), dim=-1)
+            .reshape(-1, 3)
+            .to(torch.float32)
+        )
+        return xyz
+
+    def _load_noddy(self, file_limit):
+        self.u = merge_z_slices(self.file_path, n=file_limit)
+        self.u = torch.from_numpy(self._normalise(self.u, "u")).to(torch.float32)
+        self.xyz = self.get_mgrid()
+        self.u = self.u.contiguous().view(-1, 1)
 
 
 class BatchingDataloader:
