@@ -59,7 +59,7 @@ class Exp:
             if (epoch + 1) % 25 == 0:
                 val_metric = self.val_epoch()
             if (epoch + 1) % 250 == 0:
-                self.log_figure(alt=40)
+                self.log_figure(alt=200)
 
             if trial is not None:
                 trial.report(val_metric, self.step)

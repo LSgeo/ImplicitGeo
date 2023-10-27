@@ -178,9 +178,10 @@ def plt_inr(
             fig, [ax0, ax1, ax2] = plt.subplots(1, 3, constrained_layout=True, **kwargs)
         else:
             fig, [ax0, ax1] = plt.subplots(1, 2, constrained_layout=True, **kwargs)
-
+        orientation = "horizontal"
     else:
         fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
+        orientation = "vertical"
     c0, c1 = cropping
 
     # fig.suptitle(f"INR Comparison")  # , Altitude = {altitude:0.2f}")
@@ -199,9 +200,9 @@ def plt_inr(
         ax0.set_ylabel("Northing")
         ax0.ticklabel_format(useOffset=False)
         # Share INR grid cmap
-        plt.colorbar(im1, ax=[ax0, ax1], orientation="horizontal", label="nT")
+        plt.colorbar(im1, ax=[ax0, ax1], orientation=orientation, label="nT")
     else:
-        plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
+        plt.colorbar(im1, ax=ax1, orientation=orientation, label="nT")
 
     if residual:
         std = u.std()
@@ -293,6 +294,7 @@ def plt_sample_locs(
 def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
     label = kwargs.pop("label", None)
     figsize = kwargs.pop("figsize", (7.48, 7.48 * 2 / 3))
+    std = kwargs.pop("std", None)
     shape = shape or (1, len(kwargs.keys()))
 
     if len(kwargs.keys()) > (shape[0] * shape[1]):
@@ -320,8 +322,9 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
         if "Residual" in name:
             _vmin = ax_args.pop("vmin")
             _vmax = ax_args.pop("vmax")
+            std2 = std
             rim = ax.imshow(
-                im, **{**ax_args, "cmap": cc.cm.CET_D1, "vmin": -5, "vmax": 5}
+                im, **{**ax_args, "cmap": cc.cm.CET_D1, "vmin": std2, "vmax": std2}
             )
             rax.append(ax)
         else:
