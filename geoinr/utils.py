@@ -194,7 +194,7 @@ def plt_inr(
     ax1.ticklabel_format(useOffset=False)
 
     if gt_grid is not None:
-        ax0.set_title("Reference Grid")
+        ax0.set_title("Ground Truth")
         ax0.imshow(gt_grid[c0:c1, c0:c1], extent=extent, **ax_args)
         ax0.set_xlabel("Easting")
         ax0.set_ylabel("Northing")
@@ -291,7 +291,7 @@ def plt_sample_locs(
     return fig
 
 
-def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
+def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
     label = kwargs.pop("label", None)
     figsize = kwargs.pop("figsize", (7.48, 7.48 * 2 / 3))
     std = kwargs.pop("std", None)
@@ -304,8 +304,8 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
         *shape,
         constrained_layout=True,
         figsize=figsize,
-        sharex=True,
-        sharey=True,
+        sharex=False,  # True,
+        sharey=False,  # True,
     )
     axs = np.array(axs)
 
@@ -314,6 +314,10 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
     rax = []
     cax = []
     for i, (ax, (name, im)) in enumerate(zip(axs.ravel(), kwargs.items())):
+        if name.lower() in ["off", "none"]:
+            ax.axis("off")
+            continue
+
         ax.set_title(name)
         ax.ticklabel_format(useOffset=False, style="plain")
         # ax.tick_params(axis="x", labelrotation=-90)
@@ -324,7 +328,7 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
             _vmax = ax_args.pop("vmax")
             std2 = std
             rim = ax.imshow(
-                im, **{**ax_args, "cmap": cc.cm.CET_D1, "vmin": std2, "vmax": std2}
+                im, **{**ax_args, "cmap": cc.cm.CET_D1, "vmin": -std2, "vmax": std2}
             )
             rax.append(ax)
         else:
@@ -336,9 +340,9 @@ def plt_kwargs(suptitle, ax_args, shape=None, **kwargs) -> plt.Figure:
             ax_args["vmax"] = _vmax
 
         if i in [0, shape[1]]:
-            ax.set_ylabel("Northing")
+            ax.set_ylabel("Northing (m)")
         if shape[1] == 2 or i in range(shape[1], shape[0] * shape[1]):
-            ax.set_xlabel("Easting")
+            ax.set_xlabel("Easting (m)")
 
     plt.colorbar(cim, ax=cax, orientation="horizontal", label=label)
     if "Residual" in name:

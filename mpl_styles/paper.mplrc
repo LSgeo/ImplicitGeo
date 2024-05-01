@@ -2,7 +2,8 @@ savefig.format: pdf
 figure.dpi: 100
 figure.figsize: 7.48, 4.45
 mathtext.fontset:cm
-font.family: STIXGeneral
+# font.family: STIXGeneral
+font.family: sans-serif
 # text.usetex: False
 figure.titlesize: 10
 font.size: 8
