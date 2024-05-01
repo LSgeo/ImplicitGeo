@@ -57,7 +57,7 @@ def merge_z_slices(dir_path: str, n: int = None):  # , n: int = 50):
     """
 
     dir_path = Path(dir_path)
-    mag_files = natsort.natsorted(list(dir_path.glob("*.mag")))[:n]  # sel idx dir
+    mag_files = natsort.natsorted(list(dir_path.glob("*.mag*")))[:n]  # sel idx dir
     # grv_files = sorted(list(dir_path.glob("*"))[idx].glob("*.grv"))[:n]
 
     # get x y extent from header
@@ -65,7 +65,12 @@ def merge_z_slices(dir_path: str, n: int = None):  # , n: int = 50):
     # zlen = len(mag_files)
 
     return np.stack(
-        [np.genfromtxt(f, dtype=np.float32, skip_header=8) for f in mag_files], axis=-1
+        [
+            # np.genfromtxt(f, dtype=np.float32, skip_header=8)
+            np.ascontiguousarray(np.loadtxt(f, skiprows=8, dtype=np.float32))
+            for f in mag_files
+        ],
+        axis=-1,
     )
 
 
@@ -270,13 +275,19 @@ class NoddyDataset(INRDataset):
     Optionally limit the number of altitude slices to load
     """
 
-    def __init__(self, file_path: Path, variable: str, file_limit: int = None):
+    def __init__(
+        self,
+        file_path: Path,
+        variable: str,
+        file_limit: int = None,
+        specific_id: int = None,
+    ):
         super().__init__()
 
         self.file_path = Path(file_path)
         self.file_limit = file_limit
         self.variable = variable
-        self._load_noddy(file_limit)
+        self._load_noddy(file_limit, specific_id)
 
     def get_mgrid(self, cs=20):
         """Make coord grid for noddy 20 m data"""
@@ -297,8 +308,12 @@ class NoddyDataset(INRDataset):
         )
         return xyz
 
-    def _load_noddy(self, file_limit):
-        self.u = merge_z_slices(self.file_path, n=file_limit)
+    def _load_noddy(self, file_limit, specific_id=None):
+        if specific_id:  # temp slice for 2D
+            self.u = merge_z_slices(self.file_path, n=file_limit)[:, :, specific_id]
+        else:
+            self.u = merge_z_slices(self.file_path, n=file_limit)
+
         self.u = torch.from_numpy(self._normalise(self.u, "u")).to(torch.float32)
         self.xyz = self.get_mgrid()
         self.u = self.u.contiguous().view(-1, 1)
