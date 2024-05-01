@@ -58,7 +58,7 @@ class Exp:
 
             if (epoch + 1) % 25 == 0:
                 val_metric = self.val_epoch()
-            if (epoch + 1) % 250 == 0:
+            if (epoch + 1) % 1000 == 0:
                 self.log_figure(alt=200)
 
             if trial is not None:
@@ -88,7 +88,8 @@ class Exp:
 
             with torch.amp.autocast(self.opt["device"], enabled=self.opt["use_amp"]):
                 pred_u = self.f(train_xyz)
-                # pred_u, xyz = self.f(train_xyz)
+                if self.f.return_coords:
+                    pred_u, train_xyz = pred_u
 
                 # Calculate Loss
                 loss_mse = self.cri_mse(pred_u, train_u)
@@ -98,7 +99,7 @@ class Exp:
                     loss_r = self.cri_r(self.f, xbar, self.opt["n_samples"])
                     loss_total += self.opt["weight_rloss"] * loss_r
                 if self.epoch > floss_epoch and self.opt["weight_floss"] > 0:
-                    loss_f = self.cri_laplacian(pred_u, xyz)
+                    loss_f = self.cri_laplacian(pred_u, train_xyz)
                     # loss_f = self.cri_laplacian(self.f, xyz)
                     loss_total += self.opt["weight_floss"] * loss_f
 
@@ -133,6 +134,9 @@ class Exp:
 
             pred_u = self.f(val_xyz)
 
+            if self.f.return_coords:
+                pred_u, val_xyz = pred_u
+
             avg_metric.append(self.cri_mse(pred_u, val_u).item())
 
         avg_metric = np.array(avg_metric).mean()
@@ -154,7 +158,9 @@ class Exp:
         self.exp.log_code("geoinr/models.py")
         self.exp.log_code("geoinr/datasets.py")
         self.exp.log_parameter("dataset", self.train_dataloader.name)
-        self.exp.log_parameter("dataset length", len(self.train_dataloader.dataset["u"]))
+        self.exp.log_parameter(
+            "dataset length", len(self.train_dataloader.dataset["u"])
+        )
         self.exp.log_parameters(self.opt)
 
     @torch.no_grad()

@@ -40,7 +40,10 @@ def construct_xyz(
     xyz = torch.cartesian_prod(*tuple((x_vec, y_vec, z_vec)))
 
     if shape[-1] == 1:  # return mid value if only 1 slice
-        xyz[:, -1] = z_mod
+        try:
+            xyz[:, -1] = torch.from_numpy(z_mod)
+        except:
+            xyz[:, -1] = z_mod
     if shape[-1] == 2:  # return mid value if only 1 slice
         # xyz[::2, -1] = z_mod # This works but is stupid.
         raise ValueError("Z shape should be either 1, or more than 2.")
@@ -91,26 +94,42 @@ class INRDataset(Dataset):
     def __len__(self):
         return len(self.u)
 
-    def _normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
+    def _normalise(self, inp, var: str, a=-1, b=1):
         """Min-Max Normalise between upper and lower -1 and 1
         This private method records the original ranges
         """
         self.a = a
         self.b = b
+        if np.max(inp) == np.min(inp):
+            if type(inp) is int or inp.dtype == "int":
+                self.var_ranges[var] = (np.min(inp), np.max(inp))
+                return np.zeros_like(inp)
+            else:
+                inp = inp.astype(np.float32)
+                inp[0] += 0.000001
         self.var_ranges[var] = (np.min(inp), np.max(inp))
-
         return (b - a) * ((inp - np.min(inp)) / (np.max(inp) - np.min(inp))) + a
 
-    def normalise(self, inp, var: str, a=-1, b=1) -> torch.Tensor:
+    def normalise(self, inp, var: str, a=-1, b=1):
         """Normalise inputs to the range of the training data set in _normalise"""
         _min = min(self.var_ranges[var])
         _max = max(self.var_ranges[var])
-
+        if _max == _min:
+            if type(inp) is int or type(inp) is float:
+                return np.zeros_like(inp)
+            else:
+                inp[0] += 0.000001
+                _max += 0.000001
         return (b - a) * ((inp - _min) / (_max - _min)) + a
 
     def unnormalise(self, inp, var: str) -> torch.Tensor:
         _min = min(self.var_ranges[var])
         _max = max(self.var_ranges[var])
+        if _max == _min:
+            try:
+                inp[0] += 0.000001
+            except:
+                return np.zeros_like(inp)
 
         return (inp - self.a) * ((_max - _min) / (self.b - self.a)) + _min
 
@@ -291,14 +310,16 @@ class NoddyDataset(INRDataset):
 
     def get_mgrid(self, cs=20):
         """Make coord grid for noddy 20 m data"""
-        tensors = [np.arange(s) * cs for s in self.u.shape]
+        tensors = [
+            np.arange(s) * cs for s in self.u.unsqueeze(2).shape
+        ]  # temp unsqueeze for 2D
         tensors[2] += 100  # Noddy data starts at z=100
         x, y, z = tensors
         xyz = tuple(
             (
                 torch.from_numpy(self._normalise(x, "e")),
                 torch.from_numpy(self._normalise(y, "n")),
-                torch.from_numpy(self._normalise(z, "up")),
+                torch.from_numpy(self._normalise(z, "up")).to(torch.float64),
             )
         )
         xyz = (
