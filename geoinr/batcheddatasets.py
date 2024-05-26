@@ -16,12 +16,12 @@ if torch.cuda.is_available():
 
 
 def construct_xyz(
-    shape, x_r=1, y_r=1, z_r=1, xy_mod=1, z_mod=0, **kwargs
+    shape, x_r=1, y_r=1, z_r=0, xy_mod=1, z_mod=0, **kwargs
 ) -> torch.Tensor:
     """Construct a coordinate space, perhaps to regularise an INR to.
     If you are going to do that:
     Args:
-        shape: 3D h,w,c shape, which determins the resolution of the mesh.
+        shape: 3D h,w,c shape, which determines the resolution of the mesh.
         {x|y|z}_r should be the same as the normalised training space, i.e. -1 to 1.
         {x|y|z}_mod allows you to scale the coordinate axis.
 
