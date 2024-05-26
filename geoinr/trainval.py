@@ -47,6 +47,8 @@ class Exp:
         self.cri_laplacian = PhysicsInform().cri_laplacian
         # self.cri_laplacian = PhysicsInform().vmap_cri_lap
 
+        self.img_alt = self.train_dataloader.xyz[0][:, :, 2].mean()
+
         self.step = 0
         for epoch in tqdm(
             range(self.opt["total_epochs"]), unit="epoch", desc="Training"
@@ -56,10 +58,10 @@ class Exp:
             self.train_epoch()
             # self.val_epoch()
 
-            if (epoch + 1) % 25 == 0:
+            if (epoch + 1) % 100 == 0:
                 val_metric = self.val_epoch()
-            if (epoch + 1) % 1000 == 0:
-                self.log_figure(alt=200)
+            if (epoch + 1) % 200 == 0:
+                self.log_figure(alt=self.img_alt)
 
             if trial is not None:
                 trial.report(val_metric, self.step)
@@ -164,20 +166,18 @@ class Exp:
         self.exp.log_parameters(self.opt)
 
     @torch.no_grad()
-    def log_figure(self, alt=40):
-        u = query_inr(
-            self.f, (200, 200, 1), z_mod=self.train_dataloader.normalise(alt, "up")
-        )
+    def log_figure(self, alt=0):
+        u = query_inr(self.f, (200, 200, 1), z_mod=alt)
 
         fig = plt_inr(
             u.squeeze(),
             extent=self.train_dataloader.extent,
-            suffix=f" {alt} m",
+            suffix=f" {alt:0.3} m",
             ax_args=dict(cmap=cc.cm.CET_L1),
             figsize=(5, 5),
-            dpi=100,
+            dpi=60,
         )
-        self.exp.log_figure("INR: Selected height", figure=fig, step=self.step)
+        self.exp.log_figure("INR: Dataset mean z", figure=fig, step=self.step)
         plt.close()
 
 

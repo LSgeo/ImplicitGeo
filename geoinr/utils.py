@@ -169,7 +169,7 @@ def plt_inr(
     _vmax=None,
     gt_grid=None,
     residual=False,
-    cropping=(0, -1),
+    cropping=(0, -1, 0, -1),
     **kwargs,
 ):
     """Plot a default INR model output comparison"""
@@ -182,20 +182,21 @@ def plt_inr(
     else:
         fig, ax1 = plt.subplots(1, 1, constrained_layout=True, **kwargs)
         orientation = "vertical"
-    c0, c1 = cropping
+
+    w, e, s, n = cropping  # TODO These do not correspond to west, east...
 
     # fig.suptitle(f"INR Comparison")  # , Altitude = {altitude:0.2f}")
 
-    ax1.set_title(f"Implicit Neural Representation{suffix}")
-    im1 = ax1.imshow(u[:, :][c0:c1, c0:c1], extent=extent, **ax_args)
+    ax1.set_title(f"INR{suffix}")
+    im1 = ax1.imshow(u[:, :][w:e, s:n], extent=extent, **ax_args)
     # plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
     ax1.set_xlabel("Easting")
     # ax1.set_ylabel("Northing")
     ax1.ticklabel_format(useOffset=False)
 
     if gt_grid is not None:
-        ax0.set_title("Ground Truth")
-        ax0.imshow(gt_grid[c0:c1, c0:c1], extent=extent, **ax_args)
+        ax0.set_title("Reference grid")
+        ax0.imshow(gt_grid[w:e, s:n], extent=extent, **ax_args)
         ax0.set_xlabel("Easting")
         ax0.set_ylabel("Northing")
         ax0.ticklabel_format(useOffset=False)
@@ -205,14 +206,17 @@ def plt_inr(
         plt.colorbar(im1, ax=ax1, orientation=orientation, label="nT")
 
     if residual:
-        std = u.std()
-        _vmax = 2 * std
-        _vmin = -2 * std
         ax2.set_title(
-            f"Residual (PSNR: {psnr(gt_grid[c0:c1, c0:c1,], u[:, :][c0:c1, c0:c1]):0.2f})"
+            f"Residual (RMS: {rms(gt_grid[w:e, s:n], u[:, :][w:e, s:n]):0.2f} nT)"
+            # f"Residual (PSNR: {psnr(gt_grid[w:e, s:n], u[:, :][w:e, s:n]):0.2f})"
         )
+        if not _vmax:
+            std = u.std()
+            _vmax = 2 * std
+            _vmin = -2 * std
+
         imdiff = ax2.imshow(
-            gt_grid[c0:c1, c0:c1] - u[:, :][c0:c1, c0:c1],
+            gt_grid[w:e, s:n] - u[:, :][w:e, s:n],
             vmin=_vmin,
             vmax=_vmax,
             cmap=cc.cm.CET_D7,
@@ -234,8 +238,12 @@ def psnr(grid1, grid2):
     return 10 * np.log10((grid1.max() - grid1.min()) ** 2 / mse)
 
 
+def rms(grid1, grid2):
+    return np.sqrt(np.mean((grid1 - grid2) ** 2))
+
+
 def plt_sample_locs(
-    dset, label=None, unnormalise_fn=None, gtt=None, u=None, ax3d=False
+    dset, indices=None, label=None, unnormalise_fn=None, gtt=None, u=None, ax3d=False
 ):
     # from matplotlib.colors import TwoSlopeNorm
 
@@ -247,6 +255,11 @@ def plt_sample_locs(
         x = dset.xyz[:, 0]
         y = dset.xyz[:, 1]
         z = dset.xyz[:, 2]
+
+    if indices:
+        x = x[indices]
+        y = y[indices]
+        z = z[indices]
 
     if "alt" in label.lower():
         clr = z
@@ -282,13 +295,14 @@ def plt_sample_locs(
     # norm=TwoSlopeNorm(40),
     ax.set_xlabel(f"Easting {chr(176)}")
     ax.set_ylabel(f"Northing {chr(176)}")
-    # plt.axis("equal")
-    plt.colorbar(clrs_alt, label=label)  #, orientation="horizontal")
+    plt.axis("equal")
+    plt.colorbar(clrs_alt, label=label)  # , orientation="horizontal")
 
     if gtt is not None:
         plt.imshow(gtt, cmap=cc.cm.CET_L1)
 
     return fig
+
 
 
 def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
@@ -340,9 +354,9 @@ def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
             ax_args["vmax"] = _vmax
 
         if i in [0, shape[1]]:
-            ax.set_ylabel("Northing (m)")
-        if shape[1] == 2 or i in range(shape[1], shape[0] * shape[1]):
-            ax.set_xlabel("Easting (m)")
+            ax.set_ylabel(f"Northing {chr(176)}")  # (m)")
+        if shape[1] == 2 or shape[0] == 1 or i in range(shape[1], shape[0] * shape[1]):
+            ax.set_xlabel(f"Easting {chr(176)}")  # (m)")
 
     plt.colorbar(cim, ax=cax, orientation="horizontal", label=label)
     if "Residual" in name:
@@ -354,6 +368,8 @@ def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
 def e_size(s) -> float:
     """Calculate inch for pyplot from elsevier figure widths
     https://beta.elsevier.com/about/policies-and-standards/author/artwork-and-media-instructions/artwork-sizing
+
+    s: named size in ["minimal", "single", "double"/"full"], or size in mm
     """
     if isinstance(s, (int, float)):
         mm = s
