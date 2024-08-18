@@ -304,12 +304,15 @@ def plt_sample_locs(
     return fig
 
 
-
 def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
     label = kwargs.pop("label", None)
     figsize = kwargs.pop("figsize", (7.48, 7.48 * 2 / 3))
     std = kwargs.pop("std", None)
     shape = shape or (1, len(kwargs.keys()))
+    if "xlim" in kwargs or "ylim" in kwargs:
+        lims = {"xlim": kwargs.pop("xlim", None), "ylim": kwargs.pop("ylim", None)}
+    else:
+        lims={}
 
     if len(kwargs.keys()) > (shape[0] * shape[1]):
         raise ValueError("Insufficient shape for keyword args")
@@ -320,6 +323,7 @@ def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
         figsize=figsize,
         sharex=False,  # True,
         sharey=False,  # True,
+        subplot_kw=lims,
     )
     axs = np.array(axs)
 
