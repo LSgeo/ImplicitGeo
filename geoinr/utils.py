@@ -1,7 +1,9 @@
 import colorcet as cc
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import numpy as np
+
 # import tifffile
 import torch
 
@@ -282,7 +284,15 @@ def plt_sample_locs(
     if not ax3d:
         ax = fig.add_subplot()
         clrs_alt = ax.scatter(
-            x, y, c=clr, s=1, alpha=0.6, cmap=cmap, vmin=vmin, vmax=vmax, rasterized=True
+            x,
+            y,
+            c=clr,
+            s=1,
+            alpha=0.6,
+            cmap=cmap,
+            vmin=vmin,
+            vmax=vmax,
+            rasterized=True,
         )
     else:
         ax = fig.add_subplot(projection="3d")
@@ -304,22 +314,33 @@ def plt_sample_locs(
     return fig
 
 
-def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
+def plt_kwargs(
+    ax_args,
+    suptitle=None,
+    shape=None,
+    unit=chr(176),  # default axis unit is degree sign
+    **kwargs,
+) -> plt.Figure:
+    """Custom plot function bespoke to my figure layouts and content"""
+
     label = kwargs.pop("label", None)
     figsize = kwargs.pop("figsize", (7.48, 7.48 * 2 / 3))
     std = kwargs.pop("std", None)
+    transect_coords = kwargs.pop("transect_coords", None)
     shape = shape or (1, len(kwargs.keys()))
     if "xlim" in kwargs or "ylim" in kwargs:
         lims = {"xlim": kwargs.pop("xlim", None), "ylim": kwargs.pop("ylim", None)}
     else:
-        lims={}
+        lims = {}
 
     if len(kwargs.keys()) > (shape[0] * shape[1]):
         raise ValueError("Insufficient shape for keyword args")
 
+    styles = ["k-", "g-", "b-", "r-"]
+
     fig, axs = plt.subplots(
         *shape,
-        constrained_layout=True,
+        layout="constrained",
         figsize=figsize,
         sharex=False,  # True,
         sharey=False,  # True,
@@ -351,22 +372,86 @@ def plt_kwargs(ax_args, suptitle=None, shape=None, **kwargs) -> plt.Figure:
             rax.append(ax)
         else:
             cim = ax.imshow(im, **ax_args)
-            cax.append(ax)
+            # if i > shape[1]:  # Enforce first row cbar on first row
+            if True:  # Enforce first row cbar on first row
+                cax.append(ax)
+
+        if transect_coords and i < len(styles):
+            style = styles[i]
+            x0, x1, y0, y1 = transect_coords
+            ax.plot([x0, x1], [y0, y1], style)
+            ax.annotate(
+                "A",
+                (x0, y0),
+                c=style[0],
+                backgroundcolor=("gray", 0.5),
+                xytext=(0.25, 0.8),
+                textcoords="offset fontsize",
+            )
+            ax.annotate(
+                "A'",
+                (x1, y1),
+                c=style[0],
+                backgroundcolor=("gray", 0.5),
+                xytext=(-1.25, 0.8),
+                textcoords="offset fontsize",
+            )
+
+        if i == 4:
+            # Align plot to gridspec - if ax on low row should share upper bar
+            tmp_bar = plt.colorbar(cim, ax=ax, orientation="horizontal")
+            tmp_bar.remove()
 
         if "Residual" in name:
             ax_args["vmin"] = _vmin
             ax_args["vmax"] = _vmax
 
         if i in [0, shape[1]]:
-            ax.set_ylabel(f"Northing {chr(176)}")  # (m)")
+            ax.set_ylabel(f"Northing {unit}")  # (m)")
         if shape[1] == 2 or shape[0] == 1 or i in range(shape[1], shape[0] * shape[1]):
-            ax.set_xlabel(f"Easting {chr(176)}")  # (m)")
+            ax.set_xlabel(f"Easting {unit}")  # (m)")
 
     plt.colorbar(cim, ax=cax, orientation="horizontal", label=label)
     if "Residual" in name:
         plt.colorbar(rim, ax=rax, orientation="horizontal", label=label, aspect=10)
 
     return fig
+
+
+def transect(ims: np.ndarray, gtt: np.ndarray, indice: int) -> matplotlib.figure.Figure:
+    """Simple reliable transect, one whole row or column"""
+
+    styles = ["g-", "b-", "r-"]
+    # styles = ["g-.", "b:", "r--"]
+    labels = ["INR", "Eq. Sources", "Bicubic"]
+    ann_args = dict(
+        xycoords="axes fraction", backgroundcolor=("gray", 0.2), annotation_clip=False
+    )
+
+    # plt.title(f"Synthetic transect")
+    plt.figure(figsize=(e_size("1.5"), 3), constrained_layout=True)
+    plt.plot(
+        np.linspace(0, ims[1].shape[1], gtt.shape[1], endpoint=True),
+        gtt[indice * 4, :],
+        "k-",
+        drawstyle="steps-mid",
+        label="GT",
+    )
+    for im, style, label in zip(np.array(ims[1:])[:, indice, :], styles, labels):
+        plt.plot(im, style, drawstyle="steps-mid", label=label)
+
+    plt.grid(True)
+    plt.annotate("A", xy=(0.01, 0.02), **ann_args)
+    plt.annotate("A'", xy=(0.970, 0.02), **ann_args)
+    plt.xlabel("Easting")
+    plt.xlim(0, 50)
+    plt.xticks(
+        np.linspace(0, ims[1].shape[1], 11), labels=np.linspace(0, 4000, 11, dtype=int)
+    )
+    plt.ylabel("TMI (nT)")
+    plt.legend()
+
+    return plt.gcf()
 
 
 def e_size(s) -> float:
@@ -387,7 +472,9 @@ def e_size(s) -> float:
         elif s == "2" or s.lower() in ["double", "full"]:
             mm = 190
         else:
-            raise ValueError("Unsupported target size")
+            raise ValueError(
+                "Unsupported target size: Use minimal, single, double/full"
+            )
     else:
         raise ValueError(f"{s=}, {mm=}")
     return mm / 25.4
