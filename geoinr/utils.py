@@ -278,7 +278,7 @@ def plt_sample_locs(
         vmax = None
 
     fig = plt.figure(
-        figsize=(e_size("1.5"), e_size("1.5")),
+        figsize=(e_size("1.5"), e_size("1.5")*0.9),
         layout="constrained",
     )
     if not ax3d:
@@ -287,7 +287,7 @@ def plt_sample_locs(
             x,
             y,
             c=clr,
-            s=1,
+            s=0.5,
             alpha=0.6,
             cmap=cmap,
             vmin=vmin,
