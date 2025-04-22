@@ -18,7 +18,7 @@ class Exp:
         self.opt = opt
         self.step = 0
         self.device = opt["device"]
-        self.scaler = torch.cuda.amp.GradScaler(enabled=self.opt["use_amp"])
+        self.scaler = torch.amp.GradScaler(enabled=self.opt["use_amp"])
 
     def train_inr(self) -> torch.nn.Module:
         self.init_comet()
@@ -43,8 +43,8 @@ class Exp:
             )
 
         self.cri_mse = torch.nn.MSELoss()
-        self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
-        self.cri_laplacian = PhysicsInform().cri_laplacian
+        # self.cri_r = RLoss(Sigma=self.opt["rloss_Sigma"], device=self.opt["device"])
+        # self.cri_laplacian = PhysicsInform().cri_laplacian
         # self.cri_laplacian = PhysicsInform().vmap_cri_lap
 
         self.img_alt = self.train_dataloader.xyz[0][:, :, 2].mean()
@@ -155,7 +155,7 @@ class Exp:
         if self.opt["weight_floss"] > 0:
             comet_tags.extend(["PINN"])
 
-        self.exp = comet_ml.Experiment(disabled=False)
+        self.exp = comet_ml.Experiment(disabled=True)
         self.exp.add_tags(comet_tags)
         self.exp.log_code("geoinr/models.py")
         self.exp.log_code("geoinr/datasets.py")

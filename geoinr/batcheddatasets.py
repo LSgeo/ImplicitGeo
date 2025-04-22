@@ -41,7 +41,7 @@ def construct_xyz(
 
     if shape[-1] == 1:  # return mid value if only 1 slice
         try:
-            xyz[:, -1] = torch.from_numpy(z_mod)
+            xyz[:, -1] = torch.Tensor([1.0]) * (z_mod)  # TODO convert z_mod sanely
         except:
             xyz[:, -1] = z_mod
     if shape[-1] == 2:  # return mid value if only 1 slice

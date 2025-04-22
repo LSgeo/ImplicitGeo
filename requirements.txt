@@ -1,0 +1,19 @@
+colorcet
+comet-ml
+jupyter
+ipykernel
+matplotlib
+natsort
+numpy
+rasterio
+tifffile
+harmonica
+netCDF4
+optuna
+pyproj
+rioxarray
+verde
+tqdm
+--extra-index-url https://download.pytorch.org/whl/cu124
+torchvision
+torch
