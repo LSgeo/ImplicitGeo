@@ -183,12 +183,14 @@ class NCDataset(INRDataset):
 
     def _prepare_data(self):
         if "inf" not in self.ncd.geospatial_bounds:  # Hope for the best
-            return (
-                self.ncd.variables[self.easting][:],
-                self.ncd.variables[self.northing][:],
-                self.ncd.variables[self.upward][:],
-                self.ncd.variables[self.variable][:],
-            )
+            x = self.ncd.variables[self.easting][:]
+            y = self.ncd.variables[self.northing][:]
+            if self.upward:  # Dataset has a z coordinate
+                z = self.ncd.variables[self.upward][:]
+            else:
+                z = np.zeros_like(y) + 1  # Fake being "1 unit" above "0"
+            u = self.ncd.variables[self.variable][:]
+            return (x, y, z, u)
         else:  # Found potential NaNs in xyz
             valid_idcs = np.all(
                 (
@@ -212,7 +214,10 @@ class NCDataset(INRDataset):
         self.ncd = netCDF4.Dataset(self.file_path, "r")
         self.easting = self.find_variable_name(["easting", "x", "longitude"])
         self.northing = self.find_variable_name(["northing", "y", "latitude"])
-        self.upward = self.find_variable_name(["upward", "altitude"])
+        try:
+            self.upward = self.find_variable_name(["upward", "altitude"])
+        except ValueError:
+            self.upward = None
         self.variable = self.find_variable_name([self.variable, "mag_microLevelled"])
 
         x, y, z, u = self._prepare_data()

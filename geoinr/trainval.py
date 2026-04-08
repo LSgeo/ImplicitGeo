@@ -58,9 +58,9 @@ class Exp:
             self.train_epoch()
             # self.val_epoch()
 
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % 1000 == 0:
                 val_metric = self.val_epoch()
-            if (epoch + 1) % 200 == 0:
+            if (epoch + 1) % 2000 == 0:
                 self.log_figure(alt=self.img_alt)
 
             if trial is not None:
@@ -155,7 +155,7 @@ class Exp:
         if self.opt["weight_floss"] > 0:
             comet_tags.extend(["PINN"])
 
-        self.exp = comet_ml.Experiment(disabled=False)
+        self.exp = comet_ml.Experiment(disabled=True)
         self.exp.add_tags(comet_tags)
         self.exp.log_code("geoinr/models.py")
         self.exp.log_code("geoinr/datasets.py")
@@ -177,6 +177,7 @@ class Exp:
             figsize=(5, 5),
             dpi=60,
         )
+        fig.savefig(f"INR: Dataset {alt}_step-{self.step}.png")
         self.exp.log_figure("INR: Dataset mean z", figure=fig, step=self.step)
         plt.close()
 

@@ -191,7 +191,7 @@ def plt_inr(
 
     ax1.set_title(f"INR{suffix}")
     im1 = ax1.imshow(u[:, :][w:e, s:n], extent=extent, **ax_args)
-    # plt.colorbar(im1, ax=ax1, orientation="horizontal", label="nT")
+    # plt.colorbar(im1, ax=ax1, orientation="horizontal", label="mGal")
     ax1.set_xlabel("Easting")
     # ax1.set_ylabel("Northing")
     ax1.ticklabel_format(useOffset=False)
@@ -203,13 +203,13 @@ def plt_inr(
         ax0.set_ylabel("Northing")
         ax0.ticklabel_format(useOffset=False)
         # Share INR grid cmap
-        plt.colorbar(im1, ax=[ax0, ax1], orientation=orientation, label="nT")
+        plt.colorbar(im1, ax=[ax0, ax1], orientation=orientation, label="mGal")
     else:
-        plt.colorbar(im1, ax=ax1, orientation=orientation, label="nT")
+        plt.colorbar(im1, ax=ax1, orientation=orientation, label="mGal")
 
     if residual:
         ax2.set_title(
-            f"Residual (RMS: {rms(gt_grid[w:e, s:n], u[:, :][w:e, s:n]):0.2f} nT)"
+            f"Residual (RMS: {rms(gt_grid[w:e, s:n], u[:, :][w:e, s:n]):0.2f} mGal)"
             # f"Residual (PSNR: {psnr(gt_grid[w:e, s:n], u[:, :][w:e, s:n]):0.2f})"
         )
         if not _vmax:
