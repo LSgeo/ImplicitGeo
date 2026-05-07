@@ -37,7 +37,7 @@ working_dir = Path("../")
 # Berigora Dataset
 shortname = "gswa"
 netcdf_path = working_dir / "WA_ANGD_airborne_ASCII.nc"
-
+print(netcdf_path.absolute())
 dataset = NCDataset(netcdf_path, variable="cscba")
 altitude = 1  # Read dataset.ncd description
 cell_size = 10
