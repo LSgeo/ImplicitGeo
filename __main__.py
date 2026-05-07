@@ -5,7 +5,7 @@ If we can fit a point data to an Implicit Neural Network, we can operate directl
 
 import os
 import random
-from pathlib import Path`
+from pathlib import Path
 
 # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True" # Maybe not on WSL
 import colorcet as cc

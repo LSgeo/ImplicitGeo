@@ -3,7 +3,7 @@ torchvision>=0.17
 
 colorcet
 matplotlib
-numpy
+numpy<2
 rasterio
 tifffile
 harmonica
