@@ -32,12 +32,11 @@ device = "cuda"
 fig_out = Path("figures")
 fig_out.mkdir(exist_ok=True, parents=True)
 model_outpath = "model.pt"
+working_dir = Path("../")
 
 # Berigora Dataset
 shortname = "gswa"
-netcdf_path = Path(
-    "../berigora/berigora_records/72203/Point_Gravity_Dataset_of_WA/ASEG-GDF2/WA_ANGD_airborne_ASCII.nc"
-)
+netcdf_path = working_dir / "WA_ANGD_airborne_ASCII.nc"
 
 dataset = NCDataset(netcdf_path, variable="cscba")
 altitude = 1  # Read dataset.ncd description
