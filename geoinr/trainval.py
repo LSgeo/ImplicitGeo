@@ -148,6 +148,7 @@ class Exp:
         return avg_metric
 
     def init_comet(self):
+        comet_tags = []
         if "sinusoidal" in self.opt["nonlinearity"]:
             comet_tags = ["SIREN"]
         if "wire" in self.opt["nonlinearity"]:
