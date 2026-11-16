@@ -105,7 +105,7 @@ if train_opts["nonlinearity"] in ["sinusoidal", "siren"]:
         outermost_linear=True,
     )
 
-elif train_opts["nonlinearity"] in ["wire2d, wire3d"]:
+elif train_opts["nonlinearity"] in ["wire2d", "wire3d"]:
     comet_tags = ["WIRE"]
     model: torch.nn.Module = wire(
         nonlin=train_opts["nonlinearity"],  # "wire2d" | "wire3d"
