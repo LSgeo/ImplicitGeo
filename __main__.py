@@ -15,11 +15,11 @@ import torch
 from torch.utils.data import random_split
 
 # import rasterio as rio
-import geoinr.trainval
-from geoinr.batcheddatasets import BatchingDataloader, NCDataset
-from geoinr.models import Siren
-from geoinr.models import get_INR as wire
-from geoinr.utils import plt_inr, plt_sample_locs, query_inr, query_inr_batched
+import src.geoinr.trainval
+from src.geoinr.batcheddatasets import BatchingDataloader, NCDataset
+from src.geoinr.models import Siren
+from src.geoinr.models import get_INR as wire
+from src.geoinr.utils import plt_inr, plt_sample_locs, query_inr, query_inr_batched
 
 torch.manual_seed(seed := 0)
 random.seed(seed)
@@ -128,7 +128,7 @@ if not isinstance(model, torch.nn.Module):
 if True:
     model = model.to(device, non_blocking=True)
 
-    exp = geoinr.trainval.Exp(
+    exp = src.geoinr.trainval.Exp(
         model,
         {"train": train_dataloader, "val": val_dataloader},
         train_opts,
