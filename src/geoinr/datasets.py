@@ -5,7 +5,7 @@ import netCDF4
 import numpy as np
 import torch
 
-from src.geoinr.batcheddatasets import INRDataset
+from geoinr.batcheddatasets import INRDataset
 
 rng = np.random.default_rng()
 

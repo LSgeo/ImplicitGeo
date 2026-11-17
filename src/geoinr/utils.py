@@ -7,7 +7,7 @@ import numpy as np
 # import tifffile
 import torch
 
-from src.geoinr.batcheddatasets import construct_xyz
+from geoinr.batcheddatasets import construct_xyz
 
 rng = np.random.default_rng()
 
@@ -278,7 +278,7 @@ def plt_sample_locs(
         vmax = None
 
     fig = plt.figure(
-        figsize=(e_size("1.5"), e_size("1.5")*0.9),
+        figsize=(e_size("1.5"), e_size("1.5") * 0.9),
         layout="constrained",
     )
     if not ax3d:

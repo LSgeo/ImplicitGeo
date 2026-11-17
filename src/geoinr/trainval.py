@@ -6,8 +6,8 @@ import optuna
 import torch
 from tqdm.auto import tqdm
 
-from src.geoinr.models import RLoss, PhysicsInform
-from src.geoinr.utils import query_inr, plt_inr
+from geoinr.models import RLoss, PhysicsInform
+from geoinr.utils import query_inr, plt_inr
 
 
 class Exp:
