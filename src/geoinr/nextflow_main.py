@@ -90,7 +90,6 @@ class TrainConfig:
     rloss_Sigma: float = 2e-2  # noqa: N815  (norm width is 2)
     # Original: n_samples = int(0.01 * len(dataset)). Its comment says 10%.
     rloss_n_samples_frac: float = 0.01
-    use_amp: bool = False
 
 
 @dataclass
@@ -105,7 +104,7 @@ class InferConfig:
     chunksize: int = 1_024_000  # points per inference batch
     vmin: float = -1000.0  # colour limits of the grid comparison plot
     vmax: float = 1000.0
-    dpi: int = 1000
+    dpi: int = 96
 
 
 @dataclass
@@ -113,6 +112,7 @@ class RuntimeConfig:
     device: str = "cuda"  # ROCm builds of torch also use "cuda"
     seed: int = 0
     tf32: bool = True
+    use_amp: bool = False
     pin_memory: bool = True
     run_training: bool = True  # false: skip training and load a checkpoint
 
