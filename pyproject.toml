@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=84"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geoinr"
+version = "0.1.0"
+description = "Coordinate-MLP implicit neural representations for geophysics"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# torch is deliberately NOT listed for Setonix
+dependencies = [
+    "colorcet",
+    "comet_ml",
+    "matplotlib",
+    "natsort",
+    "netCDF4",
+    "numpy<2",
+    "optuna",
+    "tqdm",
+    "rasterio",
+    "shapely", 
+    "rioxarray",
+    "xarray",
+]
+
+[project.optional-dependencies]
+# Setonix: Uses Pawsey-packaged pytorch module (already present on HPC)
+pawsey = []
+
+# Non-setonix: Grab pytorch
+local = ["torch>=2.2"]
+
+# python -m pytest --cov=src
+dev = ["pytest", "pytest-cov"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
