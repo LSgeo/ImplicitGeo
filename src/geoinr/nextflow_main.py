@@ -61,16 +61,16 @@ from typing import Optional
 @dataclass
 class DataConfig:
     variable: str = "cscba"  # netCDF variable to fit
-    train_frac: float = 0.5  # random_split fractions; must sum to 1
-    val_frac: float = 0.2
-    test_frac: float = 0.3
+    train_frac: float = 0.05  # random_split fractions; must sum to 1
+    val_frac: float = 0.02
+    test_frac: float = 0.93
 
 
 @dataclass
 class ModelConfig:
     nonlinearity: str = "siren"  # siren | sinusoidal | wire | wire2d | wire3d
-    hidden_layers: int = 5
-    hidden_features: int = 512
+    hidden_layers: int = 3
+    hidden_features: int = 256
     # Siren(first_omega_0=30, hidden_omega_0=30.0) are the class defaults the
     # original script relied on; exposed here so they can be tuned.
     siren_first_omega_0: float = 30.0
@@ -81,8 +81,8 @@ class ModelConfig:
 
 @dataclass
 class TrainConfig:
-    total_epochs: int = 100_000
-    batch_size: int = 2_048_000  # -1 means the whole training split
+    total_epochs: int = 100
+    batch_size: int = 2_048  # -1 means the whole training split
     initial_lr: float = 2e-4
     scheduler: str = "oclr"  # oclr (OneCycleLR) | mslr (MultiStepLR)
     weight_floss: float = 0.0  # Laplacian (physics) loss weight
@@ -204,8 +204,7 @@ def _merge_json(cfg: Config, raw, source: str) -> None:
     for group, body in raw.items():
         if group not in _GROUPS:
             raise ConfigError(
-                f"{source}: unknown group '{group}'. "
-                f"Valid groups: {', '.join(_GROUPS)}"
+                f"{source}: unknown group '{group}'. Valid groups: {', '.join(_GROUPS)}"
             )
         if not isinstance(body, dict):
             raise ConfigError(f"{source}: '{group}' must be a JSON object")
@@ -238,7 +237,9 @@ def _validate(cfg: Config) -> None:
     if t.initial_lr <= 0:
         problems.append("train.initial_lr must be > 0")
     if "oclr" not in t.scheduler and "mslr" not in t.scheduler:
-        problems.append(f"train.scheduler must be 'oclr' or 'mslr', got {t.scheduler!r}")
+        problems.append(
+            f"train.scheduler must be 'oclr' or 'mslr', got {t.scheduler!r}"
+        )
     if t.weight_floss < 0 or t.weight_rloss < 0:
         problems.append("train: weight_floss and weight_rloss must be >= 0")
     if t.rloss_Sigma <= 0:
@@ -270,7 +271,9 @@ def resolve_config(config_path: Optional[Path], overrides: dict) -> Config:
         try:
             raw = json.loads(Path(config_path).read_text())
         except (OSError, json.JSONDecodeError) as err:
-            raise ConfigError(f"could not read config file {config_path}: {err}") from err
+            raise ConfigError(
+                f"could not read config file {config_path}: {err}"
+            ) from err
         _merge_json(cfg, raw, str(config_path))
     for dotted, value in overrides.items():
         group, key = dotted.split(".", 1)

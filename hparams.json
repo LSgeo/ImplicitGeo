@@ -1,22 +1,22 @@
 {
   "data": {
     "variable": "cscba",
-    "train_frac": 0.5,
-    "val_frac": 0.2,
-    "test_frac": 0.3
+    "train_frac": 0.05,
+    "val_frac": 0.02,
+    "test_frac": 0.93
   },
   "model": {
     "nonlinearity": "siren",
-    "hidden_layers": 5,
-    "hidden_features": 512,
+    "hidden_layers": 3,
+    "hidden_features": 128,
     "siren_first_omega_0": 30.0,
     "siren_hidden_omega_0": 30.0,
     "wire_omega_0": 3.0,
     "wire_sigma": 3.0
   },
   "train": {
-    "total_epochs": 1000,
-    "batch_size": 20480,
+    "total_epochs": 100,
+    "batch_size": 2048,
     "initial_lr": 2e-4,
     "scheduler": "oclr",
     "weight_floss": 0.0,
@@ -38,7 +38,7 @@
   },
   "runtime": {
     "device": "cuda",
-    "seed": 0,
+    "seed": 21,
     "tf32": true,
     "use_amp": false,
     "pin_memory": true,
