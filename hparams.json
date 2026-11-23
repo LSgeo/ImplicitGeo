@@ -34,7 +34,7 @@
     "chunksize": 1024000,
     "vmin": -1000.0,
     "vmax": 1000.0,
-    "dpi": 1000
+    "dpi": 96
   },
   "runtime": {
     "device": "cuda",
