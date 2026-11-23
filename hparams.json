@@ -15,8 +15,8 @@
     "wire_sigma": 3.0
   },
   "train": {
-    "total_epochs": 100000,
-    "batch_size": 2048000,
+    "total_epochs": 1000,
+    "batch_size": 20480,
     "initial_lr": 2e-4,
     "scheduler": "oclr",
     "weight_floss": 0.0,

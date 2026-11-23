@@ -398,7 +398,7 @@ def _train_opts(cfg: Config, n_points: int) -> dict:
         "wire_omega_0": m.wire_omega_0,
         "wire_sigma": m.wire_sigma,
         "device": r.device,
-        "use_amp": t.use_amp,
+        "use_amp": r.use_amp,
     }
 
 
